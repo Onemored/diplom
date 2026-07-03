@@ -1,0 +1,66 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+media/
+storage/
+staticfiles/
+
+# PostgreSQL local data
+postgres-data/
+.postgres/
+
+# Node, Yarn and Vite
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+package-lock.json
+pnpm-lock.yaml
+
+# IDE and operating system
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Local development instructions and working materials
+P*TS.md
