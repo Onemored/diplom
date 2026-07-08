@@ -47,10 +47,11 @@ psql postgres
 
 ```text
 \password mycloud
+ALTER ROLE mycloud CREATEDB;
 \q
 ```
 
-Пароль должен совпадать с локальным `POSTGRES_PASSWORD`. Значения production здесь не используются.
+Пароль должен совпадать с локальным `POSTGRES_PASSWORD`. Право `CREATEDB` требуется только для автоматического создания и удаления отдельной тестовой БД Django. Значения production здесь не используются.
 
 Проверка службы:
 
@@ -84,7 +85,7 @@ cp .env.example .env
 ```bash
 python backend/manage.py check
 python backend/manage.py check --database default
-python backend/manage.py test config.tests --settings=config.settings.test
+python backend/manage.py test config.tests users.tests --settings=config.settings.test
 ```
 
 Первая команда проверяет конфигурацию, вторая дополнительно подтверждает подключение к PostgreSQL, третья запускает базовые тесты.
@@ -94,7 +95,7 @@ python backend/manage.py test config.tests --settings=config.settings.test
 ```bash
 ruff format --check backend
 ruff check backend
-coverage run backend/manage.py test config.tests --settings=config.settings.test
+coverage run backend/manage.py test config.tests users.tests --settings=config.settings.test
 coverage report
 ```
 
