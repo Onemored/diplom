@@ -25,9 +25,10 @@ htmlcov/
 *.log
 db.sqlite3
 db.sqlite3-journal
-media/
-storage/
-staticfiles/
+/media/
+/storage/
+/staticfiles/
+/var/
 
 # PostgreSQL local data
 postgres-data/
