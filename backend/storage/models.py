@@ -50,9 +50,7 @@ class StoredFile(models.Model):
         ordering = ("-uploaded_at",)
         verbose_name = "файл"
         verbose_name_plural = "файлы"
-        indexes = [
-            models.Index(fields=("owner", "uploaded_at"), name="storage_owner_uploaded_idx")
-        ]
+        indexes = [models.Index(fields=("owner", "uploaded_at"), name="storage_owner_uploaded_idx")]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(size__gte=0),
@@ -60,11 +58,8 @@ class StoredFile(models.Model):
             )
         ]
 
-    def clean(self):
-        super().clean()
-        self.original_name = self.original_name.strip()
-        if not self.original_name:
-            raise ValidationError({"original_name": "Имя файла не может быть пустым."})
+    def __str__(self) -> str:
+        return self.original_name
 
     def save(self, *args, **kwargs):
         self.original_name = self.original_name.strip()
@@ -74,5 +69,8 @@ class StoredFile(models.Model):
             self.relative_path = f"{self.owner.storage_path}/{self.storage_name}"
         super().save(*args, **kwargs)
 
-    def __str__(self) -> str:
-        return self.original_name
+    def clean(self):
+        super().clean()
+        self.original_name = self.original_name.strip()
+        if not self.original_name:
+            raise ValidationError({"original_name": "Имя файла не может быть пустым."})

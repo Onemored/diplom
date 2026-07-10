@@ -114,7 +114,10 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "EXCEPTION_HANDLER": "config.api.exception_handler",
 }
+
+CSRF_FAILURE_VIEW = "config.api.csrf_failure"
 
 LOGGING = {
     "version": 1,
