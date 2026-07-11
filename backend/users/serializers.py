@@ -2,6 +2,8 @@ from config.api import ConflictError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Count, Sum
+from django.db.models.functions import Coalesce
 from rest_framework import serializers
 
 from users.models import username_validator
@@ -16,6 +18,14 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "username", "fullName", "email", "isAdmin")
+
+
+class AdminUserSerializer(UserSerializer):
+    fileCount = serializers.IntegerField(source="file_count")
+    storageSize = serializers.IntegerField(source="storage_size")
+
+    class Meta(UserSerializer.Meta):
+        fields = (*UserSerializer.Meta.fields, "fileCount", "storageSize")
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -88,3 +98,14 @@ class LoginSerializer(serializers.Serializer):
 
     def validate_username(self, value):
         return value.strip().lower()
+
+
+class UserRoleSerializer(serializers.Serializer):
+    isAdmin = serializers.BooleanField(source="is_admin")
+
+
+def with_storage_stats(queryset):
+    return queryset.annotate(
+        file_count=Count("files"),
+        storage_size=Coalesce(Sum("files__size"), 0),
+    )
