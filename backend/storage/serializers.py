@@ -29,3 +29,25 @@ class StoredFileSerializer(serializers.ModelSerializer):
 
     def get_downloadUrl(self, obj):
         return reverse("storage:file-download", kwargs={"file_id": obj.id})
+
+
+class StoredFileUpdateSerializer(serializers.Serializer):
+    originalName = serializers.CharField(
+        max_length=StoredFile._meta.get_field("original_name").max_length,
+        required=False,
+        source="original_name",
+    )
+    comment = serializers.CharField(
+        max_length=1000,
+        required=False,
+        allow_blank=True,
+    )
+
+    def validate_originalName(self, value):
+        original_name = value.strip()
+        if not original_name:
+            raise serializers.ValidationError("Имя файла не может быть пустым.")
+        return original_name
+
+    def validate_comment(self, value):
+        return value.strip()

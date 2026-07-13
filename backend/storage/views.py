@@ -11,8 +11,12 @@ from rest_framework.views import APIView
 from users.views import enforce_csrf
 
 from storage.models import StoredFile
-from storage.serializers import FileOwnerSerializer, StoredFileSerializer
-from storage.services import FileRequiredError, save_uploaded_file
+from storage.serializers import (
+    FileOwnerSerializer,
+    StoredFileSerializer,
+    StoredFileUpdateSerializer,
+)
+from storage.services import FileRequiredError, delete_stored_file, save_uploaded_file
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -22,6 +26,12 @@ class StorageAccessDeniedError(APIException):
     status_code = status.HTTP_403_FORBIDDEN
     default_detail = "Нет доступа к выбранному хранилищу."
     default_code = "storage_access_denied"
+
+
+class NoChangesError(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Не переданы изменения."
+    default_code = "no_changes"
 
 
 class FileListCreateView(APIView):
@@ -69,6 +79,51 @@ class FileListCreateView(APIView):
         )
 
 
+class FileDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def patch(self, request, file_id):
+        enforce_authenticated(request)
+        enforce_csrf(request)
+        stored_file = _get_accessible_file(request.user, file_id)
+
+        serializer = StoredFileUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        if not serializer.validated_data:
+            raise NoChangesError()
+
+        for field, value in serializer.validated_data.items():
+            setattr(stored_file, field, value)
+        stored_file.full_clean()
+        stored_file.save(update_fields=tuple(serializer.validated_data.keys()))
+
+        logger.info(
+            "File updated: user_id=%s owner_id=%s file_id=%s",
+            request.user.id,
+            stored_file.owner_id,
+            stored_file.id,
+        )
+
+        return Response(StoredFileSerializer(stored_file, context={"request": request}).data)
+
+    def delete(self, request, file_id):
+        enforce_authenticated(request)
+        enforce_csrf(request)
+        stored_file = _get_accessible_file(request.user, file_id)
+        owner_id = stored_file.owner_id
+
+        delete_stored_file(stored_file)
+
+        logger.info(
+            "File deleted: user_id=%s owner_id=%s file_id=%s",
+            request.user.id,
+            owner_id,
+            file_id,
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 def _get_storage_owner(request, allow_owner_query: bool = False):
     if not request.user.is_authenticated:
         raise AuthenticationRequiredError()
@@ -84,6 +139,18 @@ def _get_storage_owner(request, allow_owner_query: bool = False):
         raise StorageAccessDeniedError()
 
     return get_object_or_404(User, pk=owner_id)
+
+
+def enforce_authenticated(request):
+    if not request.user.is_authenticated:
+        raise AuthenticationRequiredError()
+
+
+def _get_accessible_file(user, file_id):
+    queryset = StoredFile.objects.select_related("owner")
+    if not user.is_admin:
+        queryset = queryset.filter(owner=user)
+    return get_object_or_404(queryset, pk=file_id)
 
 
 class FileDownloadPlaceholderView(APIView):

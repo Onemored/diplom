@@ -148,10 +148,133 @@ class FilesApiTests(TestCase):
         self.assertEqual(response.json()["error"]["code"], "file_too_large")
         self.assertFalse(StoredFile.objects.exists())
 
+    def test_owner_can_update_file_name_and_comment(self):
+        stored_file = StoredFile.objects.create(
+            owner=self.user,
+            original_name="old.txt",
+            size=100,
+            comment="Старый комментарий",
+        )
+
+        self.login_as(self.user)
+        response = self.patch_json_with_csrf(
+            reverse("storage:file-detail", kwargs={"file_id": stored_file.id}),
+            {
+                "originalName": "  new.txt  ",
+                "comment": "  Новый комментарий  ",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        stored_file.refresh_from_db()
+        self.assertEqual(stored_file.original_name, "new.txt")
+        self.assertEqual(stored_file.comment, "Новый комментарий")
+        self.assertEqual(response.json()["originalName"], "new.txt")
+
+    def test_admin_can_update_other_user_file(self):
+        stored_file = StoredFile.objects.create(
+            owner=self.user,
+            original_name="old.txt",
+            size=100,
+        )
+
+        self.login_as(self.admin)
+        response = self.patch_json_with_csrf(
+            reverse("storage:file-detail", kwargs={"file_id": stored_file.id}),
+            {"comment": "Проверено"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        stored_file.refresh_from_db()
+        self.assertEqual(stored_file.comment, "Проверено")
+
+    def test_regular_user_cannot_update_other_user_file(self):
+        stored_file = StoredFile.objects.create(
+            owner=self.other_user,
+            original_name="other.txt",
+            size=100,
+        )
+
+        self.login_as(self.user)
+        response = self.patch_json_with_csrf(
+            reverse("storage:file-detail", kwargs={"file_id": stored_file.id}),
+            {"comment": "Нельзя"},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+
+    def test_update_rejects_empty_payload(self):
+        stored_file = StoredFile.objects.create(
+            owner=self.user,
+            original_name="file.txt",
+            size=100,
+        )
+
+        self.login_as(self.user)
+        response = self.patch_json_with_csrf(
+            reverse("storage:file-detail", kwargs={"file_id": stored_file.id}),
+            {},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "no_changes")
+
+    def test_owner_can_delete_file_metadata_and_content(self):
+        stored_file = StoredFile.objects.create(
+            owner=self.user,
+            original_name="report.pdf",
+            size=100,
+        )
+        target = Path(settings.FILE_STORAGE_ROOT) / stored_file.relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"content")
+
+        self.login_as(self.user)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.delete_with_csrf(
+                reverse("storage:file-detail", kwargs={"file_id": stored_file.id})
+            )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(StoredFile.objects.filter(pk=stored_file.pk).exists())
+        self.assertFalse(target.exists())
+
+    def test_regular_user_cannot_delete_other_user_file(self):
+        stored_file = StoredFile.objects.create(
+            owner=self.other_user,
+            original_name="other.txt",
+            size=100,
+        )
+
+        self.login_as(self.user)
+        response = self.delete_with_csrf(
+            reverse("storage:file-detail", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(StoredFile.objects.filter(pk=stored_file.pk).exists())
+
     def login_as(self, user):
         self.post_json_with_csrf(
             reverse("users:login"),
             {"username": user.username, "password": "Strong#7"},
+        )
+
+    def patch_json_with_csrf(self, url, data):
+        csrf_response = self.client.get(reverse("users:csrf"))
+        return self.client.patch(
+            url,
+            data=json.dumps(data),
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=csrf_response.json()["csrfToken"],
+        )
+
+    def delete_with_csrf(self, url):
+        csrf_response = self.client.get(reverse("users:csrf"))
+        return self.client.delete(
+            url,
+            HTTP_X_CSRFTOKEN=csrf_response.json()["csrfToken"],
         )
 
     def post_file_with_csrf(self, url, data):

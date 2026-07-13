@@ -1,9 +1,10 @@
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from rest_framework import status
 from rest_framework.exceptions import (
     APIException,
     AuthenticationFailed,
     NotAuthenticated,
+    NotFound,
     ParseError,
     PermissionDenied,
     UnsupportedMediaType,
@@ -84,6 +85,8 @@ def _get_error_code(exc) -> str:
         return "invalid_credentials"
     if isinstance(exc, NotAuthenticated):
         return "authentication_required"
+    if isinstance(exc, Http404 | NotFound):
+        return "not_found"
     if isinstance(exc, CsrfPermissionDenied):
         return "csrf_failed"
     if isinstance(exc, PermissionDenied):
@@ -107,6 +110,8 @@ def _get_error_message(exc, status_code: int) -> str:
         return "Неверный логин или пароль."
     if isinstance(exc, NotAuthenticated):
         return "Требуется вход в систему."
+    if isinstance(exc, Http404 | NotFound):
+        return "Ресурс не найден."
     if isinstance(exc, CsrfPermissionDenied):
         return "CSRF-токен отсутствует или неверен."
     if isinstance(exc, PermissionDenied):

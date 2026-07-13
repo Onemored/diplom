@@ -38,6 +38,11 @@ def schedule_user_storage_cleanup(storage_path: str) -> None:
     transaction.on_commit(lambda: _remove_directory(target))
 
 
+def schedule_stored_file_cleanup(relative_path: str) -> None:
+    target = _safe_storage_path(relative_path)
+    transaction.on_commit(lambda: _remove_file(target))
+
+
 def save_uploaded_file(owner, uploaded_file, comment: str = "") -> StoredFile:
     original_name = _safe_original_name(getattr(uploaded_file, "name", ""))
     declared_size = int(getattr(uploaded_file, "size", 0) or 0)
@@ -66,6 +71,13 @@ def save_uploaded_file(owner, uploaded_file, comment: str = "") -> StoredFile:
         raise FileStorageError() from error
 
     return stored_file
+
+
+def delete_stored_file(stored_file: StoredFile) -> None:
+    relative_path = stored_file.relative_path
+    with transaction.atomic():
+        stored_file.delete()
+        schedule_stored_file_cleanup(relative_path)
 
 
 def _safe_storage_path(storage_path: str) -> Path:
