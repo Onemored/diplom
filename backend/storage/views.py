@@ -4,6 +4,7 @@ from config.api import AuthenticationRequiredError
 from django.contrib.auth import get_user_model
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound
@@ -166,14 +167,7 @@ class FileDownloadView(APIView):
     def get(self, request, file_id):
         enforce_authenticated(request)
         stored_file = _get_accessible_file(request.user, file_id)
-
-        try:
-            file_handle = open_stored_file(stored_file)
-        except FileNotFoundError as error:
-            raise NotFound() from error
-
-        stored_file.last_downloaded_at = timezone.now()
-        stored_file.save(update_fields=("last_downloaded_at",))
+        response = _download_response(stored_file)
 
         logger.info(
             "File downloaded: user_id=%s owner_id=%s file_id=%s",
@@ -182,8 +176,57 @@ class FileDownloadView(APIView):
             stored_file.id,
         )
 
-        return FileResponse(
-            file_handle,
-            as_attachment=True,
-            filename=stored_file.original_name,
+        return response
+
+
+class PublicLinkView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, file_id):
+        enforce_authenticated(request)
+        stored_file = _get_accessible_file(request.user, file_id)
+        public_url = request.build_absolute_uri(
+            reverse("public-file-download", kwargs={"token": stored_file.public_token})
         )
+
+        logger.info(
+            "File public link requested: user_id=%s owner_id=%s file_id=%s",
+            request.user.id,
+            stored_file.owner_id,
+            stored_file.id,
+        )
+
+        return Response({"publicUrl": public_url})
+
+
+class PublicFileDownloadView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, token):
+        stored_file = get_object_or_404(StoredFile, public_token=token)
+        response = _download_response(stored_file)
+
+        logger.info(
+            "Public file downloaded: file_id=%s owner_id=%s",
+            stored_file.id,
+            stored_file.owner_id,
+        )
+
+        return response
+
+
+def _download_response(stored_file):
+    try:
+        file_handle = open_stored_file(stored_file)
+    except FileNotFoundError as error:
+        raise NotFound() from error
+
+    stored_file.last_downloaded_at = timezone.now()
+    stored_file.save(update_fields=("last_downloaded_at",))
+
+    return FileResponse(
+        file_handle,
+        as_attachment=True,
+        filename=stored_file.original_name,
+    )

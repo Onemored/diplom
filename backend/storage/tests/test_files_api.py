@@ -322,6 +322,93 @@ class FilesApiTests(TestCase):
         stored_file.refresh_from_db()
         self.assertIsNone(stored_file.last_downloaded_at)
 
+    def test_owner_can_get_public_link(self):
+        stored_file = self.create_file_with_content(
+            owner=self.user,
+            original_name="public.txt",
+            content=b"public content",
+        )
+
+        self.login_as(self.user)
+        response = self.client.get(
+            reverse("storage:file-public-link", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["publicUrl"],
+            f"http://testserver/public/files/{stored_file.public_token}/",
+        )
+
+    def test_admin_can_get_public_link_for_other_user_file(self):
+        stored_file = self.create_file_with_content(
+            owner=self.other_user,
+            original_name="other-public.txt",
+            content=b"public content",
+        )
+
+        self.login_as(self.admin)
+        response = self.client.get(
+            reverse("storage:file-public-link", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f"/public/files/{stored_file.public_token}/", response.json()["publicUrl"])
+
+    def test_regular_user_cannot_get_public_link_for_other_user_file(self):
+        stored_file = self.create_file_with_content(
+            owner=self.other_user,
+            original_name="other-public.txt",
+            content=b"secret",
+        )
+
+        self.login_as(self.user)
+        response = self.client.get(
+            reverse("storage:file-public-link", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+
+    def test_public_download_works_without_session(self):
+        stored_file = self.create_file_with_content(
+            owner=self.user,
+            original_name="external.txt",
+            content=b"external content",
+        )
+
+        response = self.client.get(
+            reverse("public-file-download", kwargs={"token": stored_file.public_token})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"external content")
+        self.assertIn("external.txt", response["Content-Disposition"])
+        stored_file.refresh_from_db()
+        self.assertIsNotNone(stored_file.last_downloaded_at)
+
+    def test_public_download_invalid_token_returns_not_found(self):
+        response = self.client.get(reverse("public-file-download", kwargs={"token": "bad-token"}))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+
+    def test_public_download_missing_file_returns_not_found(self):
+        stored_file = StoredFile.objects.create(
+            owner=self.user,
+            original_name="missing-public.txt",
+            size=100,
+        )
+
+        response = self.client.get(
+            reverse("public-file-download", kwargs={"token": stored_file.public_token})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+        stored_file.refresh_from_db()
+        self.assertIsNone(stored_file.last_downloaded_at)
+
     def create_file_with_content(self, owner, original_name, content):
         stored_file = StoredFile.objects.create(
             owner=owner,
