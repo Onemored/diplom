@@ -80,6 +80,11 @@ def delete_stored_file(stored_file: StoredFile) -> None:
         schedule_stored_file_cleanup(relative_path)
 
 
+def open_stored_file(stored_file: StoredFile):
+    target = _safe_storage_path(stored_file.relative_path)
+    return target.open("rb")
+
+
 def _safe_storage_path(storage_path: str) -> Path:
     root = Path(settings.FILE_STORAGE_ROOT).resolve()
     target = (root / storage_path).resolve()

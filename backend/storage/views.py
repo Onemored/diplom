@@ -2,7 +2,9 @@ import logging
 
 from config.api import AuthenticationRequiredError
 from django.contrib.auth import get_user_model
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound
 from rest_framework.permissions import AllowAny
@@ -16,7 +18,12 @@ from storage.serializers import (
     StoredFileSerializer,
     StoredFileUpdateSerializer,
 )
-from storage.services import FileRequiredError, delete_stored_file, save_uploaded_file
+from storage.services import (
+    FileRequiredError,
+    delete_stored_file,
+    open_stored_file,
+    save_uploaded_file,
+)
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -153,8 +160,30 @@ def _get_accessible_file(user, file_id):
     return get_object_or_404(queryset, pk=file_id)
 
 
-class FileDownloadPlaceholderView(APIView):
+class FileDownloadView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, file_id):
-        raise NotFound()
+        enforce_authenticated(request)
+        stored_file = _get_accessible_file(request.user, file_id)
+
+        try:
+            file_handle = open_stored_file(stored_file)
+        except FileNotFoundError as error:
+            raise NotFound() from error
+
+        stored_file.last_downloaded_at = timezone.now()
+        stored_file.save(update_fields=("last_downloaded_at",))
+
+        logger.info(
+            "File downloaded: user_id=%s owner_id=%s file_id=%s",
+            request.user.id,
+            stored_file.owner_id,
+            stored_file.id,
+        )
+
+        return FileResponse(
+            file_handle,
+            as_attachment=True,
+            filename=stored_file.original_name,
+        )

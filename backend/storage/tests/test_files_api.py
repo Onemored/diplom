@@ -255,6 +255,84 @@ class FilesApiTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(StoredFile.objects.filter(pk=stored_file.pk).exists())
 
+    def test_owner_can_download_file_with_original_name(self):
+        stored_file = self.create_file_with_content(
+            owner=self.user,
+            original_name="report final.txt",
+            content=b"download content",
+        )
+
+        self.login_as(self.user)
+        response = self.client.get(
+            reverse("storage:file-download", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"download content")
+        self.assertIn("attachment", response["Content-Disposition"])
+        self.assertIn("report final.txt", response["Content-Disposition"])
+
+        stored_file.refresh_from_db()
+        self.assertIsNotNone(stored_file.last_downloaded_at)
+
+    def test_admin_can_download_other_user_file(self):
+        stored_file = self.create_file_with_content(
+            owner=self.other_user,
+            original_name="admin-report.txt",
+            content=b"admin content",
+        )
+
+        self.login_as(self.admin)
+        response = self.client.get(
+            reverse("storage:file-download", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"admin content")
+
+    def test_regular_user_cannot_download_other_user_file(self):
+        stored_file = self.create_file_with_content(
+            owner=self.other_user,
+            original_name="other.txt",
+            content=b"secret",
+        )
+
+        self.login_as(self.user)
+        response = self.client.get(
+            reverse("storage:file-download", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+
+    def test_download_missing_physical_file_returns_not_found(self):
+        stored_file = StoredFile.objects.create(
+            owner=self.user,
+            original_name="missing.txt",
+            size=100,
+        )
+
+        self.login_as(self.user)
+        response = self.client.get(
+            reverse("storage:file-download", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+        stored_file.refresh_from_db()
+        self.assertIsNone(stored_file.last_downloaded_at)
+
+    def create_file_with_content(self, owner, original_name, content):
+        stored_file = StoredFile.objects.create(
+            owner=owner,
+            original_name=original_name,
+            size=len(content),
+        )
+        target = Path(settings.FILE_STORAGE_ROOT) / stored_file.relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+        return stored_file
+
     def login_as(self, user):
         self.post_json_with_csrf(
             reverse("users:login"),
