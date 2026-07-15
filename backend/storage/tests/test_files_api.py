@@ -409,6 +409,81 @@ class FilesApiTests(TestCase):
         stored_file.refresh_from_db()
         self.assertIsNone(stored_file.last_downloaded_at)
 
+    def test_upload_allows_same_original_name_without_physical_conflict(self):
+        self.login_as(self.user)
+
+        first_response = self.post_file_with_csrf(
+            reverse("storage:file-list"),
+            {"file": SimpleUploadedFile("report.txt", b"first")},
+        )
+        second_response = self.post_file_with_csrf(
+            reverse("storage:file-list"),
+            {"file": SimpleUploadedFile("report.txt", b"second")},
+        )
+
+        first_file = StoredFile.objects.get(pk=first_response.json()["id"])
+        second_file = StoredFile.objects.get(pk=second_response.json()["id"])
+
+        self.assertEqual(first_response.status_code, 201)
+        self.assertEqual(second_response.status_code, 201)
+        self.assertEqual(first_file.original_name, second_file.original_name)
+        self.assertNotEqual(first_file.relative_path, second_file.relative_path)
+        self.assertEqual(
+            (Path(settings.FILE_STORAGE_ROOT) / first_file.relative_path).read_bytes(),
+            b"first",
+        )
+        self.assertEqual(
+            (Path(settings.FILE_STORAGE_ROOT) / second_file.relative_path).read_bytes(),
+            b"second",
+        )
+
+    def test_upload_truncates_comment_to_configured_limit(self):
+        self.login_as(self.user)
+
+        with override_settings(FILE_COMMENT_MAX_LENGTH=5):
+            response = self.post_file_with_csrf(
+                reverse("storage:file-list"),
+                {
+                    "file": SimpleUploadedFile("comment.txt", b"content"),
+                    "comment": "длинный комментарий",
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["comment"], "длинн")
+        self.assertEqual(StoredFile.objects.get().comment, "длинн")
+
+    def test_download_rejects_damaged_relative_path(self):
+        stored_file = self.create_file_with_content(
+            owner=self.user,
+            original_name="safe.txt",
+            content=b"safe",
+        )
+        StoredFile.objects.filter(pk=stored_file.pk).update(relative_path="../outside.txt")
+
+        self.login_as(self.user)
+        response = self.client.get(
+            reverse("storage:file-download", kwargs={"file_id": stored_file.id})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+
+    def test_public_download_rejects_damaged_relative_path(self):
+        stored_file = self.create_file_with_content(
+            owner=self.user,
+            original_name="safe-public.txt",
+            content=b"safe",
+        )
+        StoredFile.objects.filter(pk=stored_file.pk).update(relative_path="../outside.txt")
+
+        response = self.client.get(
+            reverse("public-file-download", kwargs={"token": stored_file.public_token})
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+
     def create_file_with_content(self, owner, original_name, content):
         stored_file = StoredFile.objects.create(
             owner=owner,

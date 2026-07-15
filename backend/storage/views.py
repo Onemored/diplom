@@ -219,7 +219,7 @@ class PublicFileDownloadView(APIView):
 def _download_response(stored_file):
     try:
         file_handle = open_stored_file(stored_file)
-    except FileNotFoundError as error:
+    except (FileNotFoundError, ValueError) as error:
         raise NotFound() from error
 
     stored_file.last_downloaded_at = timezone.now()
