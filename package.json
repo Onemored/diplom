@@ -1,0 +1,17 @@
+{
+  "name": "my-cloud",
+  "private": true,
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "yarn workspace frontend dev",
+    "build": "yarn workspace frontend build",
+    "preview": "yarn workspace frontend preview",
+    "lint": "yarn workspace frontend lint",
+    "test": "yarn workspace frontend test",
+    "test:coverage": "yarn workspace frontend test:coverage",
+    "validate": "yarn workspace frontend validate"
+  }
+}

@@ -16,12 +16,12 @@
 ## 2. Инициализация проекта
 
 - [x] Создать Django-проект и приложения для пользователей и файлового хранилища.
-- [ ] Создать React-приложение с Redux и React Router на Vite.
+- [x] Создать React-приложение с Redux и React Router на Vite.
 - [x] Подключить PostgreSQL.
-- [ ] Настроить зависимости, `.gitignore`, `.env.example`, форматирование и базовые команды запуска; зафиксировать Yarn Classic 1.22.22 через Corepack, `packageManager` и `yarn.lock`.
+- [x] Настроить зависимости, `.gitignore`, `.env.example`, форматирование и базовые команды запуска; зафиксировать Yarn Classic 1.22.22 через Corepack, `packageManager` и `yarn.lock`.
 - [ ] Настроить раздачу собранного фронтенда и статических ресурсов единым Django-сервером.
 - [x] Добавить базовое логирование с уровнями `debug`, `info`, `warning`, `error`, датой и временем.
-- [ ] Добавить frontend-команды `dev`, `build`, `preview`, `lint`, `test`, `test:coverage`, `validate`; `validate` должен выполнять линтинг, тесты с покрытием и production-сборку.
+- [x] Добавить frontend-команды `dev`, `build`, `preview`, `lint`, `test`, `test:coverage`, `validate`; `validate` должен выполнять линтинг, тесты с покрытием и production-сборку.
 - [ ] Настроить CI для Pull Request и основной ветки: воспроизводимая установка зависимостей, backend-проверки и `yarn validate` до любой публикации.
 
 Результат этапа: фронтенд, бэкенд и БД запускаются локально; Django отдаёт SPA и API.
