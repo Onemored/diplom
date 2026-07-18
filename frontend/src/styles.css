@@ -44,10 +44,15 @@ a {
   gap: 12px;
 }
 
-.app-nav a {
+.app-nav a,
+.link-button {
   padding: 8px 10px;
+  border: 0;
   border-radius: 10px;
   color: #4b5563;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
   text-decoration: none;
 }
 
