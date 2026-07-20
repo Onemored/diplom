@@ -1,6 +1,6 @@
 import { configureStore, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-import { ApiError, getCurrentUser } from "../api/apiClient.js";
+import { ApiError, getCurrentUser, loginUser, logoutUser, registerUser } from "../api/apiClient.js";
 
 export const fetchCurrentUser = createAsyncThunk(
   "auth/fetchCurrentUser",
@@ -11,6 +11,40 @@ export const fetchCurrentUser = createAsyncThunk(
       if (error instanceof ApiError && error.status === 401) {
         return rejectWithValue({ anonymous: true });
       }
+      return rejectWithValue(normalizeError(error));
+    }
+  },
+);
+
+export const registerAccount = createAsyncThunk(
+  "auth/registerAccount",
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await registerUser(payload);
+    } catch (error) {
+      return rejectWithValue(normalizeError(error));
+    }
+  },
+);
+
+export const loginAccount = createAsyncThunk(
+  "auth/loginAccount",
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await loginUser(payload);
+    } catch (error) {
+      return rejectWithValue(normalizeError(error));
+    }
+  },
+);
+
+export const logoutAccount = createAsyncThunk(
+  "auth/logoutAccount",
+  async (_, { rejectWithValue }) => {
+    try {
+      await logoutUser();
+      return null;
+    } catch (error) {
       return rejectWithValue(normalizeError(error));
     }
   },
@@ -49,6 +83,44 @@ const authSlice = createSlice({
           return;
         }
         state.status = "failed";
+        state.error = action.payload;
+      })
+      .addCase(registerAccount.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(registerAccount.fulfilled, (state) => {
+        state.user = null;
+        state.status = "anonymous";
+        state.error = null;
+      })
+      .addCase(registerAccount.rejected, (state, action) => {
+        state.status = "anonymous";
+        state.error = action.payload;
+      })
+      .addCase(loginAccount.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(loginAccount.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.status = "authenticated";
+        state.error = null;
+      })
+      .addCase(loginAccount.rejected, (state, action) => {
+        state.user = null;
+        state.status = "anonymous";
+        state.error = action.payload;
+      })
+      .addCase(logoutAccount.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(logoutAccount.fulfilled, (state) => {
+        state.user = null;
+        state.status = "anonymous";
+        state.error = null;
+      })
+      .addCase(logoutAccount.rejected, (state, action) => {
         state.error = action.payload;
       });
   },

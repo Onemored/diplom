@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, Route, Routes } from "react-router-dom";
 
-import { fetchCurrentUser } from "./store.js";
+import { fetchCurrentUser, logoutAccount } from "./store.js";
 import { AdminUsersPage } from "../pages/AdminUsersPage.jsx";
 import { HomePage } from "../pages/HomePage.jsx";
 import { LoginPage } from "../pages/LoginPage.jsx";
@@ -19,6 +19,10 @@ export function App() {
       dispatch(fetchCurrentUser());
     }
   }, [dispatch, status]);
+
+  const handleLogout = () => {
+    dispatch(logoutAccount());
+  };
 
   if (status === "idle" || status === "loading") {
     return (
@@ -45,7 +49,7 @@ export function App() {
             <>
               <NavLink to="/storage">Мои файлы</NavLink>
               {user.isAdmin ? <NavLink to="/admin/users">Пользователи</NavLink> : null}
-              <button className="link-button" type="button">
+              <button className="link-button" type="button" onClick={handleLogout}>
                 Выход
               </button>
             </>

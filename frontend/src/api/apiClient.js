@@ -47,6 +47,33 @@ export function getCurrentUser() {
   return request("/auth/me/");
 }
 
+export function getCsrfToken() {
+  return request("/auth/csrf/");
+}
+
+export async function registerUser(payload) {
+  await getCsrfToken();
+  return request("/auth/register/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function loginUser(payload) {
+  await getCsrfToken();
+  return request("/auth/login/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function logoutUser() {
+  await getCsrfToken();
+  return request("/auth/logout/", {
+    method: "POST",
+  });
+}
+
 function prepareBody(body, headers) {
   if (body === undefined || body instanceof FormData) {
     return body;

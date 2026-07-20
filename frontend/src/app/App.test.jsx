@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -38,6 +39,141 @@ describe("App", () => {
     renderApp("/login");
 
     expect(screen.getByRole("heading", { name: "Вход" })).toBeInTheDocument();
+  });
+
+  it("redirects authenticated user from login", () => {
+    renderApp("/login", {
+      user: {
+        id: 1,
+        username: "admin123",
+        fullName: "Администратор",
+        email: "admin@example.com",
+        isAdmin: true,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(screen.getByRole("heading", { name: "Пользователи" })).toBeInTheDocument();
+  });
+
+  it("validates required login fields", async () => {
+    const user = userEvent.setup();
+    renderApp("/login");
+
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Укажите логин и пароль.");
+  });
+
+  it("logs in user and navigates to storage", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/v1/auth/csrf/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () => Promise.resolve({ csrfToken: "token" }),
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              id: 1,
+              username: "user123",
+              fullName: "Алексей Петров",
+              email: "user@example.com",
+              isAdmin: false,
+            }),
+        });
+      }),
+    );
+    renderApp("/login");
+
+    await user.type(screen.getByLabelText("Логин"), "user123");
+    await user.type(screen.getByLabelText("Пароль"), "Strong#7");
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(await screen.findByRole("heading", { name: "Файловое хранилище" })).toBeInTheDocument();
+  });
+
+  it("logs in admin and navigates to users", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/v1/auth/csrf/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () => Promise.resolve({ csrfToken: "token" }),
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              id: 1,
+              username: "admin123",
+              fullName: "Администратор",
+              email: "admin@example.com",
+              isAdmin: true,
+            }),
+        });
+      }),
+    );
+    renderApp("/login");
+
+    await user.type(screen.getByLabelText("Логин"), "admin123");
+    await user.type(screen.getByLabelText("Пароль"), "Strong#7");
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(await screen.findByRole("heading", { name: "Пользователи" })).toBeInTheDocument();
+  });
+
+  it("shows login server error", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/v1/auth/csrf/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () => Promise.resolve({ csrfToken: "token" }),
+          });
+        }
+        return Promise.resolve({
+          status: 401,
+          ok: false,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              error: {
+                code: "invalid_credentials",
+                message: "Неверный логин или пароль.",
+              },
+            }),
+        });
+      }),
+    );
+    renderApp("/login");
+
+    await user.type(screen.getByLabelText("Логин"), "user123");
+    await user.type(screen.getByLabelText("Пароль"), "Wrong#7");
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Неверный логин или пароль.");
   });
 
   it("renders authenticated user navigation", () => {
@@ -81,6 +217,141 @@ describe("App", () => {
     renderApp("/register");
 
     expect(screen.getByRole("heading", { name: "Регистрация" })).toBeInTheDocument();
+  });
+
+  it("redirects authenticated user from register", () => {
+    renderApp("/register", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(screen.getByRole("heading", { name: "Файловое хранилище" })).toBeInTheDocument();
+  });
+
+  it("redirects authenticated admin from register", () => {
+    renderApp("/register", {
+      user: {
+        id: 1,
+        username: "admin123",
+        fullName: "Администратор",
+        email: "admin@example.com",
+        isAdmin: true,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(screen.getByRole("heading", { name: "Пользователи" })).toBeInTheDocument();
+  });
+
+  it("validates register form before request", async () => {
+    const user = userEvent.setup();
+    renderApp("/register");
+
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+
+    expect(screen.getAllByRole("alert")).toHaveLength(4);
+    expect(screen.getByText(/Логин должен начинаться/)).toBeInTheDocument();
+  });
+
+  it("validates mismatched register passwords", async () => {
+    const user = userEvent.setup();
+    renderApp("/register");
+
+    await user.type(screen.getByLabelText("Логин"), "user123");
+    await user.type(screen.getByLabelText("Полное имя"), "Алексей Петров");
+    await user.type(screen.getByLabelText("Email"), "user@example.com");
+    await user.type(screen.getByLabelText("Пароль"), "Strong#7");
+    await user.type(screen.getByLabelText("Повтор пароля"), "Strong#8");
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+
+    expect(screen.getByText("Пароли не совпадают.")).toBeInTheDocument();
+  });
+
+  it("registers user and navigates to login", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/v1/auth/csrf/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () => Promise.resolve({ csrfToken: "token" }),
+          });
+        }
+        return Promise.resolve({
+          status: 201,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              id: 1,
+              username: "user123",
+              fullName: "Алексей Петров",
+              email: "user@example.com",
+              isAdmin: false,
+            }),
+        });
+      }),
+    );
+    renderApp("/register");
+
+    await user.type(screen.getByLabelText("Логин"), "user123");
+    await user.type(screen.getByLabelText("Полное имя"), "Алексей Петров");
+    await user.type(screen.getByLabelText("Email"), "user@example.com");
+    await user.type(screen.getByLabelText("Пароль"), "Strong#7");
+    await user.type(screen.getByLabelText("Повтор пароля"), "Strong#7");
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+
+    expect(await screen.findByText("Регистрация завершена. Теперь войдите в приложение.")).toBeInTheDocument();
+  });
+
+  it("shows register field error from server", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/v1/auth/csrf/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () => Promise.resolve({ csrfToken: "token" }),
+          });
+        }
+        return Promise.resolve({
+          status: 409,
+          ok: false,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              error: {
+                code: "username_already_exists",
+                message: "Логин уже зарегистрирован.",
+              },
+            }),
+        });
+      }),
+    );
+    renderApp("/register");
+
+    await user.type(screen.getByLabelText("Логин"), "user123");
+    await user.type(screen.getByLabelText("Полное имя"), "Алексей Петров");
+    await user.type(screen.getByLabelText("Email"), "user@example.com");
+    await user.type(screen.getByLabelText("Пароль"), "Strong#7");
+    await user.type(screen.getByLabelText("Повтор пароля"), "Strong#7");
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Логин уже зарегистрирован.");
   });
 
   it("renders the storage route", () => {
@@ -162,6 +433,79 @@ describe("App", () => {
 
     expect(store.getState().auth.status).toBe("authenticated");
     expect(store.getState().auth.user.username).toBe("user123");
+  });
+
+  it("logs out user from navigation", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 204,
+          ok: true,
+          headers: new Headers(),
+        }),
+      ),
+    );
+    renderApp("/", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Выход" }));
+
+    expect(await screen.findByRole("link", { name: "Вход" })).toBeInTheDocument();
+  });
+
+  it("keeps user visible when logout request fails", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/v1/auth/csrf/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () => Promise.resolve({ csrfToken: "token" }),
+          });
+        }
+        return Promise.resolve({
+          status: 500,
+          ok: false,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              error: {
+                code: "internal_error",
+                message: "Внутренняя ошибка сервера.",
+              },
+            }),
+        });
+      }),
+    );
+    renderApp("/", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Выход" }));
+
+    expect(await screen.findByRole("button", { name: "Выход" })).toBeInTheDocument();
   });
 
   it("stores failed session state", async () => {
