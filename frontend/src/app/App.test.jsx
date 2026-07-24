@@ -354,16 +354,81 @@ describe("App", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Логин уже зарегистрирован.");
   });
 
-  it("renders the storage route", () => {
+  it("redirects guest from storage route to login", () => {
     renderApp("/storage");
+
+    expect(screen.getByRole("heading", { name: "Вход" })).toBeInTheDocument();
+  });
+
+  it("renders the storage route for authenticated user", () => {
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
 
     expect(screen.getByRole("heading", { name: "Файловое хранилище" })).toBeInTheDocument();
   });
 
-  it("renders the admin users route", () => {
+  it("redirects guest from admin users route to login", () => {
     renderApp("/admin/users");
 
+    expect(screen.getByRole("heading", { name: "Вход" })).toBeInTheDocument();
+  });
+
+  it("redirects regular user from admin users route to storage", () => {
+    renderApp("/admin/users", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(screen.getByRole("heading", { name: "Файловое хранилище" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Раздел доступен только администратору.");
+  });
+
+  it("renders the admin users route for admin", () => {
+    renderApp("/admin/users", {
+      user: {
+        id: 1,
+        username: "admin123",
+        fullName: "Администратор",
+        email: "admin@example.com",
+        isAdmin: true,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
     expect(screen.getByRole("heading", { name: "Пользователи" })).toBeInTheDocument();
+  });
+
+  it("renders selected user storage route for admin", () => {
+    renderApp("/admin/users/7/files", {
+      user: {
+        id: 1,
+        username: "admin123",
+        fullName: "Администратор",
+        email: "admin@example.com",
+        isAdmin: true,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(screen.getByRole("heading", { name: "Файловое хранилище" })).toBeInTheDocument();
   });
 
   it("renders the not found route", () => {

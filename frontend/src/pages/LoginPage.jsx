@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { loginAccount } from "../app/store.js";
 
@@ -13,14 +13,10 @@ export function LoginPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, status, error } = useSelector((state) => state.auth);
+  const { status, error } = useSelector((state) => state.auth);
   const [form, setForm] = useState(initialForm);
   const [clientError, setClientError] = useState("");
   const isSubmitting = status === "loading";
-
-  if (user) {
-    return <Navigate to={user.isAdmin ? "/admin/users" : "/storage"} replace />;
-  }
 
   const handleChange = (event) => {
     setForm((current) => ({
