@@ -47,6 +47,10 @@ export function getCurrentUser() {
   return request("/auth/me/");
 }
 
+export function getUsers() {
+  return request("/users/");
+}
+
 export function getCsrfToken() {
   return request("/auth/csrf/");
 }

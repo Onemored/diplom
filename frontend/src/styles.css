@@ -173,6 +173,40 @@ a {
   color: #047857;
 }
 
+.table-scroll {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.data-table caption {
+  margin-bottom: 12px;
+  color: #4b5563;
+  text-align: left;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table thead th {
+  color: #374151;
+  background: #f8fafc;
+}
+
+.data-table a {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
 @media (max-width: 720px) {
   .app-header {
     align-items: flex-start;

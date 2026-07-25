@@ -42,6 +42,7 @@ describe("App", () => {
   });
 
   it("redirects authenticated user from login", () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network"))));
     renderApp("/login", {
       user: {
         id: 1,
@@ -77,6 +78,14 @@ describe("App", () => {
             ok: true,
             headers: new Headers({ "Content-Type": "application/json" }),
             json: () => Promise.resolve({ csrfToken: "token" }),
+          });
+        }
+        if (url === "/api/v1/users/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () => Promise.resolve({ items: [] }),
           });
         }
         return Promise.resolve({
@@ -236,6 +245,7 @@ describe("App", () => {
   });
 
   it("redirects authenticated admin from register", () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network"))));
     renderApp("/register", {
       user: {
         id: 1,
@@ -400,6 +410,39 @@ describe("App", () => {
   });
 
   it("renders the admin users route for admin", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              items: [
+                {
+                  id: 1,
+                  username: "admin123",
+                  fullName: "Администратор",
+                  email: "admin@example.com",
+                  isAdmin: true,
+                  fileCount: 0,
+                  storageSize: 0,
+                },
+                {
+                  id: 2,
+                  username: "user123",
+                  fullName: "Алексей Петров",
+                  email: "user@example.com",
+                  isAdmin: false,
+                  fileCount: 4,
+                  storageSize: 2457600,
+                },
+              ],
+            }),
+        }),
+      ),
+    );
     renderApp("/admin/users", {
       user: {
         id: 1,
@@ -413,6 +456,123 @@ describe("App", () => {
     });
 
     expect(screen.getByRole("heading", { name: "Пользователи" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Загружаем пользователей.");
+  });
+
+  it("shows loaded users table for admin", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              items: [
+                {
+                  id: 1,
+                  username: "admin123",
+                  fullName: "Администратор",
+                  email: "admin@example.com",
+                  isAdmin: true,
+                  fileCount: 0,
+                  storageSize: 0,
+                },
+                {
+                  id: 2,
+                  username: "user123",
+                  fullName: "Алексей Петров",
+                  email: "user@example.com",
+                  isAdmin: false,
+                  fileCount: 4,
+                  storageSize: 2457600,
+                },
+              ],
+            }),
+        }),
+      ),
+    );
+    renderApp("/admin/users", {
+      user: {
+        id: 1,
+        username: "admin123",
+        fullName: "Администратор",
+        email: "admin@example.com",
+        isAdmin: true,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(await screen.findByRole("table", { name: "Пользователи My Cloud" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: "admin123" })).toBeInTheDocument();
+    expect(screen.getByText("0 Б")).toBeInTheDocument();
+    expect(screen.getByText("2,3 МБ")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Открыть файлы" })[0]).toHaveAttribute(
+      "href",
+      "/admin/users/1/files",
+    );
+  });
+
+  it("shows empty users list state for admin", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () => Promise.resolve({ items: [] }),
+        }),
+      ),
+    );
+    renderApp("/admin/users", {
+      user: {
+        id: 1,
+        username: "admin123",
+        fullName: "Администратор",
+        email: "admin@example.com",
+        isAdmin: true,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(await screen.findByText("Пользователей пока нет.")).toBeInTheDocument();
+  });
+
+  it("shows users loading error for admin", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 403,
+          ok: false,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              error: {
+                code: "admin_required",
+                message: "Доступно только администратору.",
+              },
+            }),
+        }),
+      ),
+    );
+    renderApp("/admin/users", {
+      user: {
+        id: 1,
+        username: "admin123",
+        fullName: "Администратор",
+        email: "admin@example.com",
+        isAdmin: true,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Доступно только администратору.");
   });
 
   it("renders selected user storage route for admin", () => {

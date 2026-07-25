@@ -1,6 +1,13 @@
 import { configureStore, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-import { ApiError, getCurrentUser, loginUser, logoutUser, registerUser } from "../api/apiClient.js";
+import {
+  ApiError,
+  getCurrentUser,
+  getUsers,
+  loginUser,
+  logoutUser,
+  registerUser,
+} from "../api/apiClient.js";
 
 export const fetchCurrentUser = createAsyncThunk(
   "auth/fetchCurrentUser",
@@ -49,6 +56,14 @@ export const logoutAccount = createAsyncThunk(
     }
   },
 );
+
+export const fetchUsers = createAsyncThunk("users/fetchUsers", async (_, { rejectWithValue }) => {
+  try {
+    return await getUsers();
+  } catch (error) {
+    return rejectWithValue(normalizeError(error));
+  }
+});
 
 const authSlice = createSlice({
   name: "auth",
@@ -136,6 +151,23 @@ const usersSlice = createSlice({
     deletingId: null,
   },
   reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchUsers.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchUsers.fulfilled, (state, action) => {
+        state.items = action.payload.items ?? [];
+        state.status = "succeeded";
+        state.error = null;
+      })
+      .addCase(fetchUsers.rejected, (state, action) => {
+        state.items = [];
+        state.status = "failed";
+        state.error = action.payload;
+      });
+  },
 });
 
 const filesSlice = createSlice({

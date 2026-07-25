@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, getCurrentUser, request } from "./apiClient.js";
+import { ApiError, getCurrentUser, getUsers, request } from "./apiClient.js";
 
 function mockJsonResponse({ status = 200, ok = true, data = {} } = {}) {
   return Promise.resolve({
@@ -40,6 +40,39 @@ describe("apiClient", () => {
       }),
     );
   });
+
+  it("loads users list", async () => {
+    const fetchMock = vi.fn(() =>
+      mockJsonResponse({
+        data: {
+          items: [
+            {
+              id: 1,
+              username: "admin123",
+            },
+          ],
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getUsers()).resolves.toEqual({
+      items: [
+        {
+          id: 1,
+          username: "admin123",
+        },
+      ],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/users/",
+      expect.objectContaining({
+        method: "GET",
+        credentials: "include",
+      }),
+    );
+  });
+
 
   it("returns null for no content response", async () => {
     vi.stubGlobal(
