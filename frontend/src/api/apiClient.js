@@ -51,6 +51,23 @@ export function getUsers() {
   return request("/users/");
 }
 
+export async function updateUserRole({ userId, isAdmin }) {
+  await getCsrfToken();
+  return request(`/users/${userId}/role/`, {
+    method: "PATCH",
+    body: {
+      isAdmin,
+    },
+  });
+}
+
+export async function deleteUser(userId) {
+  await getCsrfToken();
+  return request(`/users/${userId}/`, {
+    method: "DELETE",
+  });
+}
+
 export function getCsrfToken() {
   return request("/auth/csrf/");
 }

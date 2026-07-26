@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, getCurrentUser, getUsers, request } from "./apiClient.js";
+import { ApiError, deleteUser, getCurrentUser, getUsers, request, updateUserRole } from "./apiClient.js";
 
 function mockJsonResponse({ status = 200, ok = true, data = {} } = {}) {
   return Promise.resolve({
@@ -69,6 +69,56 @@ describe("apiClient", () => {
       expect.objectContaining({
         method: "GET",
         credentials: "include",
+      }),
+    );
+  });
+
+  it("updates user role with csrf token", async () => {
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/auth/csrf/") {
+        return mockJsonResponse({ data: { csrfToken: "token" } });
+      }
+      return mockJsonResponse({
+        data: {
+          id: 2,
+          username: "user123",
+          isAdmin: true,
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(updateUserRole({ userId: 2, isAdmin: true })).resolves.toMatchObject({
+      id: 2,
+      isAdmin: true,
+    });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/users/2/role/",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ isAdmin: true }),
+      }),
+    );
+  });
+
+  it("deletes user with csrf token", async () => {
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/auth/csrf/") {
+        return mockJsonResponse({ data: { csrfToken: "token" } });
+      }
+      return Promise.resolve({
+        status: 204,
+        ok: true,
+        headers: new Headers(),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteUser(2)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/users/2/",
+      expect.objectContaining({
+        method: "DELETE",
       }),
     );
   });

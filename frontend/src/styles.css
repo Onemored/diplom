@@ -207,6 +207,27 @@ a {
   font-weight: 700;
 }
 
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.table-button {
+  padding: 0;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.table-button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.danger-button {
+  color: #b91c1c;
+}
+
 @media (max-width: 720px) {
   .app-header {
     align-items: flex-start;

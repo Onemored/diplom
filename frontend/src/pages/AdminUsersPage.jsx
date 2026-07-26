@@ -2,11 +2,11 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
-import { fetchUsers } from "../app/store.js";
+import { changeUserRole, fetchUsers, removeUser } from "../app/store.js";
 
 export function AdminUsersPage() {
   const dispatch = useDispatch();
-  const { items, status, error } = useSelector((state) => state.users);
+  const { items, status, error, roleUpdatingId, deletingId } = useSelector((state) => state.users);
 
   useEffect(() => {
     if (status === "idle") {
@@ -19,7 +19,7 @@ export function AdminUsersPage() {
       <h1>Пользователи</h1>
       <p>Список пользователей, их роли и текущая статистика файлового хранилища.</p>
       {status === "loading" ? <p role="status">Загружаем пользователей.</p> : null}
-      {status === "failed" ? (
+      {error ? (
         <p className="error-message" role="alert">
           {error.message}
         </p>
@@ -27,12 +27,22 @@ export function AdminUsersPage() {
       {status === "succeeded" && items.length === 0 ? (
         <p role="status">Пользователей пока нет.</p>
       ) : null}
-      {items.length > 0 ? <UsersTable users={items} /> : null}
+      {items.length > 0 ? (
+        <UsersTable
+          deletingId={deletingId}
+          onDeleteUser={(user) => dispatch(removeUser(user.id))}
+          onToggleRole={(user) =>
+            dispatch(changeUserRole({ userId: user.id, isAdmin: !user.isAdmin }))
+          }
+          roleUpdatingId={roleUpdatingId}
+          users={items}
+        />
+      ) : null}
     </section>
   );
 }
 
-function UsersTable({ users }) {
+function UsersTable({ deletingId, onDeleteUser, onToggleRole, roleUpdatingId, users }) {
   return (
     <div className="table-scroll">
       <table className="data-table">
@@ -58,7 +68,25 @@ function UsersTable({ users }) {
               <td>{user.fileCount}</td>
               <td>{formatBytes(user.storageSize)}</td>
               <td>
-                <Link to={`/admin/users/${user.id}/files`}>Открыть файлы</Link>
+                <div className="table-actions">
+                  <Link to={`/admin/users/${user.id}/files`}>Открыть файлы</Link>
+                  <button
+                    className="link-button table-button"
+                    disabled={roleUpdatingId === user.id}
+                    onClick={() => confirmRoleChange(user, onToggleRole)}
+                    type="button"
+                  >
+                    {user.isAdmin ? "Сделать пользователем" : "Сделать администратором"}
+                  </button>
+                  <button
+                    className="link-button table-button danger-button"
+                    disabled={deletingId === user.id}
+                    onClick={() => confirmDelete(user, onDeleteUser)}
+                    type="button"
+                  >
+                    Удалить
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -66,6 +94,19 @@ function UsersTable({ users }) {
       </table>
     </div>
   );
+}
+
+function confirmRoleChange(user, onToggleRole) {
+  const nextRole = user.isAdmin ? "пользователем" : "администратором";
+  if (window.confirm(`Сделать ${user.username} ${nextRole}?`)) {
+    onToggleRole(user);
+  }
+}
+
+function confirmDelete(user, onDeleteUser) {
+  if (window.confirm(`Удалить пользователя ${user.username}? Это действие нельзя отменить.`)) {
+    onDeleteUser(user);
+  }
 }
 
 function formatBytes(bytes) {
