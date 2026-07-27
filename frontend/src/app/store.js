@@ -4,6 +4,7 @@ import {
   ApiError,
   deleteUser,
   getCurrentUser,
+  getFiles,
   getUsers,
   loginUser,
   logoutUser,
@@ -66,6 +67,17 @@ export const fetchUsers = createAsyncThunk("users/fetchUsers", async (_, { rejec
     return rejectWithValue(normalizeError(error));
   }
 });
+
+export const fetchFiles = createAsyncThunk(
+  "files/fetchFiles",
+  async (payload = {}, { rejectWithValue }) => {
+    try {
+      return await getFiles(payload);
+    } catch (error) {
+      return rejectWithValue(normalizeError(error));
+    }
+  },
+);
 
 export const changeUserRole = createAsyncThunk(
   "users/changeUserRole",
@@ -226,6 +238,7 @@ const usersSlice = createSlice({
 const filesSlice = createSlice({
   name: "files",
   initialState: {
+    ownerId: null,
     owner: null,
     items: [],
     status: "idle",
@@ -236,6 +249,26 @@ const filesSlice = createSlice({
     sharingId: null,
   },
   reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchFiles.pending, (state, action) => {
+        state.ownerId = action.meta.arg?.ownerId ?? null;
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchFiles.fulfilled, (state, action) => {
+        state.owner = action.payload.owner ?? null;
+        state.items = action.payload.items ?? [];
+        state.status = "succeeded";
+        state.error = null;
+      })
+      .addCase(fetchFiles.rejected, (state, action) => {
+        state.owner = null;
+        state.items = [];
+        state.status = "failed";
+        state.error = action.payload;
+      });
+  },
 });
 
 export const { setAnonymous } = authSlice.actions;

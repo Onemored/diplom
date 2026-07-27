@@ -376,6 +376,24 @@ describe("App", () => {
   });
 
   it("renders the storage route for authenticated user", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [],
+            }),
+        }),
+      ),
+    );
     renderApp("/storage", {
       user: {
         id: 1,
@@ -391,6 +409,135 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Файловое хранилище" })).toBeInTheDocument();
   });
 
+  it("shows loaded files table for authenticated user", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [
+                {
+                  id: 42,
+                  originalName: "report.pdf",
+                  size: 245760,
+                  comment: "Финальная версия",
+                  uploadedAt: "2026-07-03T14:30:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/42/download/",
+                },
+                {
+                  id: 43,
+                  originalName: "empty.txt",
+                  size: 0,
+                  comment: "",
+                  uploadedAt: "2026-07-04T10:00:00+05:00",
+                  lastDownloadedAt: "2026-07-05T11:15:00+05:00",
+                  downloadUrl: "/api/v1/files/43/download/",
+                },
+              ],
+            }),
+        }),
+      ),
+    );
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(await screen.findByRole("table", { name: "Файлы My Cloud" })).toBeInTheDocument();
+    expect(screen.getByText("Владелец: user123")).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: "report.pdf" })).toBeInTheDocument();
+    expect(screen.getByText("Финальная версия")).toBeInTheDocument();
+    expect(screen.getByText("240 КБ")).toBeInTheDocument();
+    expect(screen.getByText("0 Б")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("Не скачивали")).toBeInTheDocument();
+  });
+
+  it("shows empty files list state", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [],
+            }),
+        }),
+      ),
+    );
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(await screen.findByText("Файлов пока нет.")).toBeInTheDocument();
+  });
+
+  it("shows files loading error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 403,
+          ok: false,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              error: {
+                code: "storage_access_denied",
+                message: "Нет доступа к выбранному хранилищу.",
+              },
+            }),
+        }),
+      ),
+    );
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Нет доступа к выбранному хранилищу.",
+    );
+  });
+
   it("redirects guest from admin users route to login", () => {
     renderApp("/admin/users");
 
@@ -398,6 +545,24 @@ describe("App", () => {
   });
 
   it("redirects regular user from admin users route to storage", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [],
+            }),
+        }),
+      ),
+    );
     renderApp("/admin/users", {
       user: {
         id: 1,
@@ -980,6 +1145,22 @@ describe("App", () => {
   });
 
   it("renders selected user storage route for admin", () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: () =>
+          Promise.resolve({
+            owner: {
+              id: 7,
+              username: "target-user",
+            },
+            items: [],
+          }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
     renderApp("/admin/users/7/files", {
       user: {
         id: 1,
@@ -993,6 +1174,12 @@ describe("App", () => {
     });
 
     expect(screen.getByRole("heading", { name: "Файловое хранилище" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/files/?ownerId=7",
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
   });
 
   it("renders the not found route", () => {

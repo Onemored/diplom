@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, deleteUser, getCurrentUser, getUsers, request, updateUserRole } from "./apiClient.js";
+import {
+  ApiError,
+  deleteUser,
+  getCurrentUser,
+  getFiles,
+  getUsers,
+  request,
+  updateUserRole,
+} from "./apiClient.js";
 
 function mockJsonResponse({ status = 200, ok = true, data = {} } = {}) {
   return Promise.resolve({
@@ -69,6 +77,50 @@ describe("apiClient", () => {
       expect.objectContaining({
         method: "GET",
         credentials: "include",
+      }),
+    );
+  });
+
+  it("loads own files list", async () => {
+    const fetchMock = vi.fn(() =>
+      mockJsonResponse({
+        data: {
+          owner: {
+            id: 2,
+            username: "user123",
+          },
+          items: [],
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getFiles()).resolves.toEqual({
+      owner: {
+        id: 2,
+        username: "user123",
+      },
+      items: [],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/files/",
+      expect.objectContaining({
+        method: "GET",
+        credentials: "include",
+      }),
+    );
+  });
+
+  it("loads selected owner files list", async () => {
+    const fetchMock = vi.fn(() => mockJsonResponse({ data: { items: [] } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getFiles({ ownerId: "17" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/files/?ownerId=17",
+      expect.objectContaining({
+        method: "GET",
       }),
     );
   });

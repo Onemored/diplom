@@ -51,6 +51,14 @@ export function getUsers() {
   return request("/users/");
 }
 
+export function getFiles({ ownerId = null } = {}) {
+  if (ownerId) {
+    return request(`/files/?ownerId=${encodeURIComponent(ownerId)}`);
+  }
+
+  return request("/files/");
+}
+
 export async function updateUserRole({ userId, isAdmin }) {
   await getCsrfToken();
   return request(`/users/${userId}/role/`, {
