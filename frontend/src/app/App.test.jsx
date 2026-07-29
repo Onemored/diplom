@@ -469,6 +469,174 @@ describe("App", () => {
     expect(screen.getByText("Не скачивали")).toBeInTheDocument();
   });
 
+  it("validates file upload form before request", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [],
+            }),
+        }),
+      ),
+    );
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Загрузить файл" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Выберите файл для загрузки.");
+  });
+
+  it("uploads file and adds it to table", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/files/") {
+        if (fetchMock.mock.calls.filter(([calledUrl]) => calledUrl === "/api/v1/files/").length === 1) {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () =>
+              Promise.resolve({
+                owner: {
+                  id: 1,
+                  username: "user123",
+                },
+                items: [],
+              }),
+          });
+        }
+        return Promise.resolve({
+          status: 201,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              id: 99,
+              originalName: "new-report.txt",
+              size: 12,
+              comment: "Новый отчёт",
+              uploadedAt: "2026-07-06T12:00:00+05:00",
+              lastDownloadedAt: null,
+              downloadUrl: "/api/v1/files/99/download/",
+            }),
+        });
+      }
+      return Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: () => Promise.resolve({ csrfToken: "token" }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await screen.findByText("Файлов пока нет.");
+    await user.upload(screen.getByLabelText("Файл"), new File(["new content"], "new-report.txt"));
+    await user.type(screen.getByLabelText("Комментарий"), "Новый отчёт");
+    await user.click(screen.getByRole("button", { name: "Загрузить файл" }));
+
+    expect(await screen.findByRole("rowheader", { name: "new-report.txt" })).toBeInTheDocument();
+    expect(screen.getByText("Файл загружен.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Комментарий")).toHaveValue("");
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/files/",
+      expect.objectContaining({
+        body: expect.any(FormData),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("shows file upload error from server", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/files/") {
+        if (fetchMock.mock.calls.filter(([calledUrl]) => calledUrl === "/api/v1/files/").length === 1) {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () =>
+              Promise.resolve({
+                owner: {
+                  id: 1,
+                  username: "user123",
+                },
+                items: [],
+              }),
+          });
+        }
+        return Promise.resolve({
+          status: 413,
+          ok: false,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              error: {
+                code: "file_too_large",
+                message: "Файл превышает допустимый размер.",
+              },
+            }),
+        });
+      }
+      return Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: () => Promise.resolve({ csrfToken: "token" }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await screen.findByText("Файлов пока нет.");
+    await user.upload(screen.getByLabelText("Файл"), new File(["big"], "big.bin"));
+    await user.click(screen.getByRole("button", { name: "Загрузить файл" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Файл превышает допустимый размер.");
+  });
+
   it("shows empty files list state", async () => {
     vi.stubGlobal(
       "fetch",

@@ -10,6 +10,7 @@ import {
   logoutUser,
   registerUser,
   updateUserRole,
+  uploadFile,
 } from "../api/apiClient.js";
 
 export const fetchCurrentUser = createAsyncThunk(
@@ -73,6 +74,17 @@ export const fetchFiles = createAsyncThunk(
   async (payload = {}, { rejectWithValue }) => {
     try {
       return await getFiles(payload);
+    } catch (error) {
+      return rejectWithValue(normalizeError(error));
+    }
+  },
+);
+
+export const uploadStorageFile = createAsyncThunk(
+  "files/uploadStorageFile",
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await uploadFile(payload);
     } catch (error) {
       return rejectWithValue(normalizeError(error));
     }
@@ -266,6 +278,20 @@ const filesSlice = createSlice({
         state.owner = null;
         state.items = [];
         state.status = "failed";
+        state.error = action.payload;
+      })
+      .addCase(uploadStorageFile.pending, (state) => {
+        state.uploadStatus = "loading";
+        state.error = null;
+      })
+      .addCase(uploadStorageFile.fulfilled, (state, action) => {
+        state.items = [action.payload, ...state.items];
+        state.status = "succeeded";
+        state.uploadStatus = "succeeded";
+        state.error = null;
+      })
+      .addCase(uploadStorageFile.rejected, (state, action) => {
+        state.uploadStatus = "failed";
         state.error = action.payload;
       });
   },

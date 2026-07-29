@@ -8,6 +8,7 @@ import {
   getUsers,
   request,
   updateUserRole,
+  uploadFile,
 } from "./apiClient.js";
 
 function mockJsonResponse({ status = 200, ok = true, data = {} } = {}) {
@@ -123,6 +124,46 @@ describe("apiClient", () => {
         method: "GET",
       }),
     );
+  });
+
+  it("uploads file with comment and selected owner", async () => {
+    const file = new File(["content"], "report.txt", { type: "text/plain" });
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/auth/csrf/") {
+        return mockJsonResponse({ data: { csrfToken: "token" } });
+      }
+      return mockJsonResponse({
+        status: 201,
+        data: {
+          id: 42,
+          originalName: "report.txt",
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      uploadFile({
+        file,
+        comment: "Финальная версия",
+        ownerId: "17",
+      }),
+    ).resolves.toMatchObject({
+      id: 42,
+      originalName: "report.txt",
+    });
+
+    const [, options] = fetchMock.mock.calls.at(-1);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/files/",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(options.body).toBeInstanceOf(FormData);
+    expect(options.body.get("file")).toBe(file);
+    expect(options.body.get("comment")).toBe("Финальная версия");
+    expect(options.body.get("ownerId")).toBe("17");
   });
 
   it("updates user role with csrf token", async () => {

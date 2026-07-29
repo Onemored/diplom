@@ -173,6 +173,14 @@ a {
   color: #047857;
 }
 
+.upload-form {
+  margin: 0 0 32px;
+  padding: 20px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+}
+
 .table-scroll {
   overflow-x: auto;
 }

@@ -1,16 +1,20 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useParams } from "react-router-dom";
 
-import { fetchFiles } from "../app/store.js";
+import { fetchFiles, uploadStorageFile } from "../app/store.js";
 
 export function StoragePage() {
   const dispatch = useDispatch();
+  const fileInputRef = useRef(null);
   const location = useLocation();
   const { userId } = useParams();
   const selectedOwnerId = userId ?? null;
-  const { ownerId, owner, items, status, error } = useSelector((state) => state.files);
+  const { ownerId, owner, items, status, error, uploadStatus } = useSelector((state) => state.files);
   const accessDenied = location.state?.accessDenied;
+  const [comment, setComment] = useState("");
+  const [clientError, setClientError] = useState("");
+  const isUploading = uploadStatus === "loading";
 
   useEffect(() => {
     if (status === "idle" || ownerId !== selectedOwnerId) {
@@ -18,14 +22,72 @@ export function StoragePage() {
     }
   }, [dispatch, ownerId, selectedOwnerId, status]);
 
+  const handleUpload = async (event) => {
+    event.preventDefault();
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) {
+      setClientError("Выберите файл для загрузки.");
+      return;
+    }
+
+    setClientError("");
+    const result = await dispatch(
+      uploadStorageFile({
+        file,
+        comment,
+        ownerId: selectedOwnerId,
+      }),
+    );
+
+    if (uploadStorageFile.fulfilled.match(result)) {
+      setComment("");
+      fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <section className="page-card">
       <h1>Файловое хранилище</h1>
       {accessDenied ? <p role="alert">{accessDenied}</p> : null}
       <p>Файлы выбранного хранилища с комментариями, размером и датами операций.</p>
       {owner ? <p>Владелец: {owner.username}</p> : null}
+      <form className="form-stack upload-form" onSubmit={handleUpload}>
+        <label>
+          Файл
+          <input
+            name="file"
+            onChange={() => setClientError("")}
+            ref={fileInputRef}
+            type="file"
+          />
+        </label>
+        <label>
+          Комментарий
+          <input
+            maxLength={255}
+            name="comment"
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="Например: финальная версия отчёта"
+            type="text"
+            value={comment}
+          />
+        </label>
+        {clientError ? (
+          <p className="error-message" role="alert">
+            {clientError}
+          </p>
+        ) : null}
+        {uploadStatus === "succeeded" ? (
+          <p className="success-message" role="status">
+            Файл загружен.
+          </p>
+        ) : null}
+        <button className="button" disabled={isUploading} type="submit">
+          {isUploading ? "Загружаем..." : "Загрузить файл"}
+        </button>
+      </form>
       {status === "loading" ? <p role="status">Загружаем файлы.</p> : null}
-      {status === "failed" ? (
+      {error ? (
         <p className="error-message" role="alert">
           {error.message}
         </p>

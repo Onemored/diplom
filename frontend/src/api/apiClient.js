@@ -59,6 +59,21 @@ export function getFiles({ ownerId = null } = {}) {
   return request("/files/");
 }
 
+export async function uploadFile({ file, comment = "", ownerId = null }) {
+  await getCsrfToken();
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("comment", comment);
+  if (ownerId) {
+    formData.append("ownerId", ownerId);
+  }
+
+  return request("/files/", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 export async function updateUserRole({ userId, isAdmin }) {
   await getCsrfToken();
   return request(`/users/${userId}/role/`, {
