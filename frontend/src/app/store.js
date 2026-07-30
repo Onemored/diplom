@@ -2,6 +2,7 @@ import { configureStore, createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 
 import {
   ApiError,
+  deleteFile,
   deleteUser,
   getCurrentUser,
   getFiles,
@@ -9,6 +10,7 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  updateFile,
   updateUserRole,
   uploadFile,
 } from "../api/apiClient.js";
@@ -85,6 +87,29 @@ export const uploadStorageFile = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       return await uploadFile(payload);
+    } catch (error) {
+      return rejectWithValue(normalizeError(error));
+    }
+  },
+);
+
+export const editStorageFile = createAsyncThunk(
+  "files/editStorageFile",
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await updateFile(payload);
+    } catch (error) {
+      return rejectWithValue(normalizeError(error));
+    }
+  },
+);
+
+export const removeStorageFile = createAsyncThunk(
+  "files/removeStorageFile",
+  async (fileId, { rejectWithValue }) => {
+    try {
+      await deleteFile(fileId);
+      return fileId;
     } catch (error) {
       return rejectWithValue(normalizeError(error));
     }
@@ -292,6 +317,34 @@ const filesSlice = createSlice({
       })
       .addCase(uploadStorageFile.rejected, (state, action) => {
         state.uploadStatus = "failed";
+        state.error = action.payload;
+      })
+      .addCase(editStorageFile.pending, (state, action) => {
+        state.updatingId = action.meta.arg.fileId;
+        state.error = null;
+      })
+      .addCase(editStorageFile.fulfilled, (state, action) => {
+        state.updatingId = null;
+        state.items = state.items.map((file) =>
+          file.id === action.payload.id ? action.payload : file,
+        );
+        state.error = null;
+      })
+      .addCase(editStorageFile.rejected, (state, action) => {
+        state.updatingId = null;
+        state.error = action.payload;
+      })
+      .addCase(removeStorageFile.pending, (state, action) => {
+        state.deletingId = action.meta.arg;
+        state.error = null;
+      })
+      .addCase(removeStorageFile.fulfilled, (state, action) => {
+        state.deletingId = null;
+        state.items = state.items.filter((file) => file.id !== action.payload);
+        state.error = null;
+      })
+      .addCase(removeStorageFile.rejected, (state, action) => {
+        state.deletingId = null;
         state.error = action.payload;
       });
   },

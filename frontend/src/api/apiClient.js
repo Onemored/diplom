@@ -74,6 +74,24 @@ export async function uploadFile({ file, comment = "", ownerId = null }) {
   });
 }
 
+export async function updateFile({ fileId, originalName, comment }) {
+  await getCsrfToken();
+  return request(`/files/${fileId}/`, {
+    method: "PATCH",
+    body: {
+      originalName,
+      comment,
+    },
+  });
+}
+
+export async function deleteFile(fileId) {
+  await getCsrfToken();
+  return request(`/files/${fileId}/`, {
+    method: "DELETE",
+  });
+}
+
 export async function updateUserRole({ userId, isAdmin }) {
   await getCsrfToken();
   return request(`/users/${userId}/role/`, {

@@ -467,6 +467,443 @@ describe("App", () => {
     expect(screen.getByText("0 Б")).toBeInTheDocument();
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.getByText("Не скачивали")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Скачать" })[0]).toHaveAttribute(
+      "href",
+      "/api/v1/files/42/download/",
+    );
+  });
+
+  it("edits file metadata", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/files/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [
+                {
+                  id: 42,
+                  originalName: "report.pdf",
+                  size: 245760,
+                  comment: "Финальная версия",
+                  uploadedAt: "2026-07-03T14:30:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/42/download/",
+                },
+                {
+                  id: 43,
+                  originalName: "notes.txt",
+                  size: 128,
+                  comment: "Заметки",
+                  uploadedAt: "2026-07-04T10:00:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/43/download/",
+                },
+              ],
+            }),
+        });
+      }
+      if (url === "/api/v1/auth/csrf/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () => Promise.resolve({ csrfToken: "token" }),
+        });
+      }
+      return Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: () =>
+          Promise.resolve({
+            id: 42,
+            originalName: "renamed.pdf",
+            size: 245760,
+            comment: "Исправленная версия",
+            uploadedAt: "2026-07-03T14:30:00+05:00",
+            lastDownloadedAt: null,
+            downloadUrl: "/api/v1/files/42/download/",
+          }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Изменить" })[0]);
+    await user.clear(screen.getByLabelText("Новое имя файла report.pdf"));
+    await user.type(screen.getByLabelText("Новое имя файла report.pdf"), "renamed.pdf");
+    await user.clear(screen.getByLabelText("Новый комментарий файла report.pdf"));
+    await user.type(screen.getByLabelText("Новый комментарий файла report.pdf"), "Исправленная версия");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(await screen.findByRole("rowheader", { name: "renamed.pdf" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: "notes.txt" })).toBeInTheDocument();
+    expect(screen.getByText("Исправленная версия")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/files/42/",
+      expect.objectContaining({
+        body: JSON.stringify({
+          originalName: "renamed.pdf",
+          comment: "Исправленная версия",
+        }),
+        method: "PATCH",
+      }),
+    );
+  });
+
+  it("cancels file metadata editing", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: () =>
+          Promise.resolve({
+            owner: {
+              id: 1,
+              username: "user123",
+            },
+            items: [
+              {
+                id: 42,
+                originalName: "report.pdf",
+                size: 245760,
+                comment: "Финальная версия",
+                uploadedAt: "2026-07-03T14:30:00+05:00",
+                lastDownloadedAt: null,
+                downloadUrl: "/api/v1/files/42/download/",
+              },
+            ],
+          }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Изменить" }));
+    await user.clear(screen.getByLabelText("Новое имя файла report.pdf"));
+    await user.type(screen.getByLabelText("Новое имя файла report.pdf"), "draft.pdf");
+    await user.click(screen.getByRole("button", { name: "Отмена" }));
+
+    expect(screen.getByRole("rowheader", { name: "report.pdf" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows file metadata update error", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/files/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [
+                {
+                  id: 42,
+                  originalName: "report.pdf",
+                  size: 245760,
+                  comment: "Финальная версия",
+                  uploadedAt: "2026-07-03T14:30:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/42/download/",
+                },
+              ],
+            }),
+        });
+      }
+      if (url === "/api/v1/auth/csrf/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () => Promise.resolve({ csrfToken: "token" }),
+        });
+      }
+      return Promise.resolve({
+        status: 400,
+        ok: false,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: () =>
+          Promise.resolve({
+            error: {
+              code: "validation_error",
+              message: "Проверьте имя файла.",
+            },
+          }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Изменить" }));
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Проверьте имя файла.");
+  });
+
+  it("deletes file after confirmation", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/files/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [
+                {
+                  id: 42,
+                  originalName: "report.pdf",
+                  size: 245760,
+                  comment: "Финальная версия",
+                  uploadedAt: "2026-07-03T14:30:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/42/download/",
+                },
+              ],
+            }),
+        });
+      }
+      if (url === "/api/v1/auth/csrf/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () => Promise.resolve({ csrfToken: "token" }),
+        });
+      }
+      return Promise.resolve({
+        status: 204,
+        ok: true,
+        headers: new Headers(),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Удалить" }));
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Удалить файл report.pdf? Это действие нельзя отменить.",
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("rowheader", { name: "report.pdf" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("does not delete file when confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("confirm", vi.fn(() => false));
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: () =>
+          Promise.resolve({
+            owner: {
+              id: 1,
+              username: "user123",
+            },
+            items: [
+              {
+                id: 42,
+                originalName: "report.pdf",
+                size: 245760,
+                comment: "Финальная версия",
+                uploadedAt: "2026-07-03T14:30:00+05:00",
+                lastDownloadedAt: null,
+                downloadUrl: "/api/v1/files/42/download/",
+              },
+            ],
+          }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Удалить" }));
+
+    expect(screen.getByRole("rowheader", { name: "report.pdf" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows file delete error", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/files/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [
+                {
+                  id: 42,
+                  originalName: "report.pdf",
+                  size: 245760,
+                  comment: "Финальная версия",
+                  uploadedAt: "2026-07-03T14:30:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/42/download/",
+                },
+              ],
+            }),
+        });
+      }
+      if (url === "/api/v1/auth/csrf/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () => Promise.resolve({ csrfToken: "token" }),
+        });
+      }
+      return Promise.reject(new Error("network"));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Удалить" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось подключиться к серверу.");
+  });
+
+  it("renders disabled file action buttons while request is running", async () => {
+    const user = userEvent.setup();
+    renderApp(
+      "/storage",
+      {
+        user: {
+          id: 1,
+          username: "user123",
+          fullName: "Алексей Петров",
+          email: "user@example.com",
+          isAdmin: false,
+        },
+        status: "authenticated",
+        error: null,
+      },
+      {
+        files: {
+          ownerId: null,
+          owner: {
+            id: 1,
+            username: "user123",
+          },
+          items: [
+            {
+              id: 42,
+              originalName: "report.pdf",
+              size: 245760,
+              comment: "Финальная версия",
+              uploadedAt: "2026-07-03T14:30:00+05:00",
+              lastDownloadedAt: "2026-07-05T11:15:00+05:00",
+              downloadUrl: "/api/v1/files/42/download/",
+            },
+          ],
+          status: "succeeded",
+          error: null,
+          uploadStatus: "idle",
+          updatingId: 42,
+          deletingId: 42,
+          sharingId: null,
+        },
+      },
+    );
+
+    expect(screen.getByRole("button", { name: "Удаляем..." })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    expect(screen.getByText("05.07.2026, 11:15")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Сохраняем..." })).toBeDisabled();
   });
 
   it("validates file upload form before request", async () => {

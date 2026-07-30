@@ -232,6 +232,15 @@ a {
   opacity: 0.6;
 }
 
+.table-input {
+  width: min(240px, 100%);
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #111827;
+  font: inherit;
+}
+
 .danger-button {
   color: #b91c1c;
 }

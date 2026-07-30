@@ -2,11 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ApiError,
+  deleteFile,
   deleteUser,
   getCurrentUser,
   getFiles,
   getUsers,
   request,
+  updateFile,
   updateUserRole,
   uploadFile,
 } from "./apiClient.js";
@@ -164,6 +166,65 @@ describe("apiClient", () => {
     expect(options.body.get("file")).toBe(file);
     expect(options.body.get("comment")).toBe("Финальная версия");
     expect(options.body.get("ownerId")).toBe("17");
+  });
+
+  it("updates file metadata with csrf token", async () => {
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/auth/csrf/") {
+        return mockJsonResponse({ data: { csrfToken: "token" } });
+      }
+      return mockJsonResponse({
+        data: {
+          id: 42,
+          originalName: "renamed.txt",
+          comment: "Обновлено",
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      updateFile({
+        fileId: 42,
+        originalName: "renamed.txt",
+        comment: "Обновлено",
+      }),
+    ).resolves.toMatchObject({
+      id: 42,
+      originalName: "renamed.txt",
+    });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/files/42/",
+      expect.objectContaining({
+        body: JSON.stringify({
+          originalName: "renamed.txt",
+          comment: "Обновлено",
+        }),
+        method: "PATCH",
+      }),
+    );
+  });
+
+  it("deletes file with csrf token", async () => {
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/auth/csrf/") {
+        return mockJsonResponse({ data: { csrfToken: "token" } });
+      }
+      return Promise.resolve({
+        status: 204,
+        ok: true,
+        headers: new Headers(),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteFile(42)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/files/42/",
+      expect.objectContaining({
+        method: "DELETE",
+      }),
+    );
   });
 
   it("updates user role with csrf token", async () => {

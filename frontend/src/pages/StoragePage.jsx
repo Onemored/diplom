@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useParams } from "react-router-dom";
 
-import { fetchFiles, uploadStorageFile } from "../app/store.js";
+import {
+  editStorageFile,
+  fetchFiles,
+  removeStorageFile,
+  uploadStorageFile,
+} from "../app/store.js";
 
 export function StoragePage() {
   const dispatch = useDispatch();
@@ -10,7 +15,16 @@ export function StoragePage() {
   const location = useLocation();
   const { userId } = useParams();
   const selectedOwnerId = userId ?? null;
-  const { ownerId, owner, items, status, error, uploadStatus } = useSelector((state) => state.files);
+  const {
+    ownerId,
+    owner,
+    items,
+    status,
+    error,
+    uploadStatus,
+    updatingId,
+    deletingId,
+  } = useSelector((state) => state.files);
   const accessDenied = location.state?.accessDenied;
   const [comment, setComment] = useState("");
   const [clientError, setClientError] = useState("");
@@ -93,12 +107,20 @@ export function StoragePage() {
         </p>
       ) : null}
       {status === "succeeded" && items.length === 0 ? <p role="status">Файлов пока нет.</p> : null}
-      {items.length > 0 ? <FilesTable files={items} /> : null}
+      {items.length > 0 ? (
+        <FilesTable
+          deletingId={deletingId}
+          files={items}
+          onDeleteFile={(file) => dispatch(removeStorageFile(file.id))}
+          onEditFile={(payload) => dispatch(editStorageFile(payload))}
+          updatingId={updatingId}
+        />
+      ) : null}
     </section>
   );
 }
 
-function FilesTable({ files }) {
+function FilesTable({ deletingId, files, onDeleteFile, onEditFile, updatingId }) {
   return (
     <div className="table-scroll">
       <table className="data-table">
@@ -110,22 +132,120 @@ function FilesTable({ files }) {
             <th scope="col">Размер</th>
             <th scope="col">Загружен</th>
             <th scope="col">Последнее скачивание</th>
+            <th scope="col">Действия</th>
           </tr>
         </thead>
         <tbody>
           {files.map((file) => (
-            <tr key={file.id}>
-              <th scope="row">{file.originalName}</th>
-              <td>{file.comment || "—"}</td>
-              <td>{formatBytes(file.size)}</td>
-              <td>{formatDateTime(file.uploadedAt)}</td>
-              <td>{file.lastDownloadedAt ? formatDateTime(file.lastDownloadedAt) : "Не скачивали"}</td>
-            </tr>
+            <FileRow
+              deletingId={deletingId}
+              file={file}
+              key={file.id}
+              onDeleteFile={onDeleteFile}
+              onEditFile={onEditFile}
+              updatingId={updatingId}
+            />
           ))}
         </tbody>
       </table>
     </div>
   );
+}
+
+function FileRow({ deletingId, file, onDeleteFile, onEditFile, updatingId }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalName, setOriginalName] = useState(file.originalName);
+  const [comment, setComment] = useState(file.comment);
+  const isUpdating = updatingId === file.id;
+  const isDeleting = deletingId === file.id;
+
+  const handleEdit = async (event) => {
+    event.preventDefault();
+    const result = await onEditFile({
+      fileId: file.id,
+      originalName,
+      comment,
+    });
+    if (editStorageFile.fulfilled.match(result)) {
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setOriginalName(file.originalName);
+    setComment(file.comment);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <tr>
+        <th scope="row">
+          <input
+            aria-label={`Новое имя файла ${file.originalName}`}
+            className="table-input"
+            onChange={(event) => setOriginalName(event.target.value)}
+            type="text"
+            value={originalName}
+          />
+        </th>
+        <td>
+          <input
+            aria-label={`Новый комментарий файла ${file.originalName}`}
+            className="table-input"
+            onChange={(event) => setComment(event.target.value)}
+            type="text"
+            value={comment}
+          />
+        </td>
+        <td>{formatBytes(file.size)}</td>
+        <td>{formatDateTime(file.uploadedAt)}</td>
+        <td>{file.lastDownloadedAt ? formatDateTime(file.lastDownloadedAt) : "Не скачивали"}</td>
+        <td>
+          <form className="table-actions" onSubmit={handleEdit}>
+            <button className="link-button table-button" disabled={isUpdating} type="submit">
+              {isUpdating ? "Сохраняем..." : "Сохранить"}
+            </button>
+            <button className="link-button table-button" onClick={handleCancel} type="button">
+              Отмена
+            </button>
+          </form>
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr>
+      <th scope="row">{file.originalName}</th>
+      <td>{file.comment || "—"}</td>
+      <td>{formatBytes(file.size)}</td>
+      <td>{formatDateTime(file.uploadedAt)}</td>
+      <td>{file.lastDownloadedAt ? formatDateTime(file.lastDownloadedAt) : "Не скачивали"}</td>
+      <td>
+        <div className="table-actions">
+          <a href={file.downloadUrl}>Скачать</a>
+          <button className="link-button table-button" onClick={() => setIsEditing(true)} type="button">
+            Изменить
+          </button>
+          <button
+            className="link-button table-button danger-button"
+            disabled={isDeleting}
+            onClick={() => confirmDeleteFile(file, onDeleteFile)}
+            type="button"
+          >
+            {isDeleting ? "Удаляем..." : "Удалить"}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function confirmDeleteFile(file, onDeleteFile) {
+  if (window.confirm(`Удалить файл ${file.originalName}? Это действие нельзя отменить.`)) {
+    onDeleteFile(file);
+  }
 }
 
 function formatBytes(bytes) {
