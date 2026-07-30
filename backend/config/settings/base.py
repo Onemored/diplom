@@ -95,6 +95,13 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = env.path("DJANGO_STATIC_ROOT", default=PROJECT_ROOT / "var" / "static")
+frontend_dist_value = env("FRONTEND_DIST_DIR", default=str(PROJECT_ROOT / "frontend" / "dist"))
+FRONTEND_DIST_DIR = Path(frontend_dist_value)
+if not FRONTEND_DIST_DIR.is_absolute():
+    FRONTEND_DIST_DIR = PROJECT_ROOT / FRONTEND_DIST_DIR
+
+if (FRONTEND_DIST_DIR / "assets").exists():
+    STATICFILES_DIRS = [("assets", FRONTEND_DIST_DIR / "assets")]
 
 FILE_STORAGE_ROOT = env.path(
     "FILE_STORAGE_ROOT",

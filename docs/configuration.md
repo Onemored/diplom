@@ -174,19 +174,19 @@ SECURE_HSTS_SECONDS=<включается после проверки HTTPS>
 | Переменная | Пример | Назначение |
 |---|---|---|
 | `DJANGO_STATIC_ROOT` | `./var/static` | Результат `collectstatic` |
-| `FRONTEND_DIST_DIR` | `../frontend/dist` | Production-сборка Vite |
+| `FRONTEND_DIST_DIR` | `./frontend/dist` | Production-сборка Vite |
 
 Последовательность production-сборки:
 
 1. `yarn install --frozen-lockfile`;
 2. `yarn build`;
-3. сбор или копирование frontend-артефактов в доступное Django место;
+3. Django подключает `FRONTEND_DIST_DIR/assets` как источник статических файлов;
 4. `python manage.py collectstatic --noinput`;
 5. миграции;
 6. создание начального администратора;
 7. запуск production-процесса.
 
-Стратегия копирования уточняется после создания каркаса и проверяется на чистой сборке. API и публичное скачивание имеют приоритет над fallback SPA.
+Vite собирает production-артефакты с базовым путём `/static/`. После `collectstatic` файлы из `frontend/dist/assets` доступны как `/static/assets/...`. Django отдаёт `frontend/dist/index.html` для пользовательских SPA-маршрутов, а API, публичное скачивание, админка и статика имеют приоритет над fallback SPA.
 
 ## Vite
 

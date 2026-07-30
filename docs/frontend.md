@@ -325,7 +325,7 @@ Vitest использует `jsdom`, Testing Library и user-event. Порог �
 ## Production-сборка
 
 - Vite создаёт статические файлы в `frontend/dist`.
-- Django собирает или копирует артефакты в настроенный каталог статики при развёртывании.
+- Django подключает `frontend/dist/assets` к `collectstatic` и отдаёт `frontend/dist/index.html` для SPA-маршрутов.
 - Fallback-маршрут Django возвращает `index.html` только для путей SPA, но не маскирует `/api/`, `/public/` и статические файлы.
 - Команда `yarn validate` выполняет `yarn lint`, `yarn test:coverage` и `yarn build`.
 - Сборка не содержит source map в production, если их безопасное размещение отдельно не настроено.

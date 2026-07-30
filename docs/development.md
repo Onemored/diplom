@@ -1,6 +1,6 @@
 # Локальная разработка My Cloud
 
-Документ содержит промежуточные команды разработки. Итоговая инструкция будет перенесена в корневой `README.md` перед сдачей проекта.
+Документ содержит рабочие команды разработки. Итоговая краткая инструкция для проверки находится в корневом `README.md`.
 
 ## Требования
 
@@ -106,7 +106,7 @@ python backend/manage.py bootstrap_admin
 ```bash
 ruff format --check backend
 ruff check backend
-coverage run backend/manage.py test config.tests users.tests --settings=config.settings.test
+coverage run backend/manage.py test config.tests users.tests storage.tests --settings=config.settings.test
 coverage report
 ```
 

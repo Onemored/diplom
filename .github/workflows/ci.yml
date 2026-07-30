@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: mycloud
+          POSTGRES_USER: mycloud
+          POSTGRES_PASSWORD: local_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mycloud -d mycloud"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      POSTGRES_DB: mycloud
+      POSTGRES_USER: mycloud
+      POSTGRES_PASSWORD: local_password
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements/dev.txt
+
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements/dev.txt
+
+      - name: Check backend formatting
+        run: ruff format --check backend
+
+      - name: Lint backend
+        run: ruff check backend
+
+      - name: Test backend
+        run: coverage run backend/manage.py test config.tests users.tests storage.tests --settings=config.settings.test
+
+      - name: Report backend coverage
+        run: coverage report
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: yarn
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install frontend dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Validate frontend
+        run: yarn validate
