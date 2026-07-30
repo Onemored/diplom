@@ -1142,7 +1142,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Удаляем..." })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Готовим..." })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Изменить" }));
-    expect(screen.getByText("05.07.2026, 11:15")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("report.pdf")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Сохраняем..." })).toBeDisabled();
   });
 
