@@ -67,7 +67,7 @@ function UsersTable({ deletingId, onDeleteUser, onToggleRole, roleUpdatingId, us
               <td>{user.isAdmin ? "Администратор" : "Пользователь"}</td>
               <td>{user.fileCount}</td>
               <td>{formatBytes(user.storageSize)}</td>
-              <td>
+              <td className="actions-cell">
                 <div className="table-actions">
                   <Link
                     className="action-button action-button-primary"

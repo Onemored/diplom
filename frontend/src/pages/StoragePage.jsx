@@ -230,7 +230,7 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, shar
         <td>{formatBytes(file.size)}</td>
         <td>{formatDateTime(file.uploadedAt)}</td>
         <td>{file.lastDownloadedAt ? formatDateTime(file.lastDownloadedAt) : "Не скачивали"}</td>
-        <td>
+        <td className="actions-cell">
           <form className="table-actions" onSubmit={handleEdit}>
             <button
               className="action-button action-button-primary"
@@ -261,7 +261,7 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, shar
       <td>{formatBytes(file.size)}</td>
       <td>{formatDateTime(file.uploadedAt)}</td>
       <td>{file.lastDownloadedAt ? formatDateTime(file.lastDownloadedAt) : "Не скачивали"}</td>
-      <td>
+      <td className="actions-cell">
         <div className="table-actions">
           <a
             className="action-button action-button-primary"

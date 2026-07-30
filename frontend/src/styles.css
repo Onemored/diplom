@@ -214,6 +214,10 @@ a {
   vertical-align: top;
 }
 
+.data-table .actions-cell {
+  width: 260px;
+}
+
 .data-table thead th {
   color: #374151;
   background: #f8fafc;
@@ -238,7 +242,7 @@ a {
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 6px;
-  min-width: 220px;
+  max-width: 260px;
 }
 
 .action-button {
@@ -255,9 +259,10 @@ a {
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.15;
   text-decoration: none;
-  white-space: nowrap;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .action-button:hover {
@@ -310,7 +315,7 @@ a {
 }
 
 .public-link-input {
-  width: min(360px, 100%);
+  width: 100%;
 }
 
 .public-link-row {
