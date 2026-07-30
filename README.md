@@ -4,6 +4,8 @@
 
 Приложение позволяет пользователям регистрироваться, входить в систему, загружать файлы, скачивать их с оригинальным именем, редактировать название и комментарий, удалять файлы и получать обезличенные публичные ссылки. Администратор может управлять пользователями и открывать хранилище любого пользователя.
 
+Production-версия: https://cloud.apolos.ru/
+
 Исходное задание сохранено в [docs/assignment.md](docs/assignment.md).
 
 ## Возможности
@@ -34,6 +36,8 @@
 - Yarn Classic 1.22.22;
 - Vitest, Testing Library, Ruff, Coverage.py;
 - GitHub Actions.
+
+Production-развёртывание проверено на Ubuntu 24.04 LTS, Python 3.12, PostgreSQL 16, Node.js 22 LTS, Nginx, Gunicorn и Certbot.
 
 ## Структура проекта
 
@@ -149,6 +153,18 @@ DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python backend/manag
 
 Подробности конфигурации: [docs/configuration.md](docs/configuration.md).
 
+## Развёртывание
+
+Проверенный публичный контур работает на REG.RU CloudVPS:
+
+```text
+https://cloud.apolos.ru/
+```
+
+Для домена настроена A-запись `cloud.apolos.ru -> 89.104.71.144`, HTTPS-сертификат Let’s Encrypt и автоматическое продление через `certbot.timer`.
+
+Подробный порядок развёртывания, nginx-конфигурация, smoke-проверки и переменные GitHub Secrets для автодеплоя описаны в [docs/deployment.md](docs/deployment.md).
+
 ## Проверки
 
 Backend:
@@ -185,6 +201,7 @@ yarn validate
 - [docs/api.md](docs/api.md) — REST API;
 - [docs/frontend.md](docs/frontend.md) — frontend-структура;
 - [docs/configuration.md](docs/configuration.md) — настройки окружений;
+- [docs/deployment.md](docs/deployment.md) — production-развёртывание;
 - [docs/development.md](docs/development.md) — рабочие команды разработки;
 - [docs/assignment.md](docs/assignment.md) — исходное задание.
 

@@ -85,6 +85,10 @@ config.settings.production
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Dev-адреса | Обязательно | Полные HTTPS-origin через запятую |
 | `DJANGO_LOG_LEVEL` | `DEBUG` | `INFO` | Уровень консольного журнала |
 | `DJANGO_TIME_ZONE` | `Asia/Yekaterinburg` | Явно | Часовой пояс отображения и администрирования |
+| `DJANGO_SESSION_COOKIE_SECURE` | `false` при HTTP-проверке | `true` | Передача session cookie только по HTTPS |
+| `DJANGO_CSRF_COOKIE_SECURE` | `false` при HTTP-проверке | `true` | Передача CSRF cookie только по HTTPS |
+| `DJANGO_SECURE_SSL_REDIRECT` | `false` при HTTP-проверке | `true` | Перенаправление HTTP на HTTPS |
+| `DJANGO_SECURE_HSTS_SECONDS` | `0` | После проверки HTTPS | Время действия HSTS |
 
 `USE_TZ=True` остаётся включённым. В БД даты хранятся с учётом UTC, API возвращает ISO 8601 с часовым поясом, интерфейс форматирует их средствами браузера.
 
@@ -157,6 +161,14 @@ SECURE_HSTS_SECONDS=<включается после проверки HTTPS>
 Если HTTPS завершается на reverse proxy reg.ru, Django получает корректный признак защищённого запроса через доверенную настройку proxy. Заголовок нельзя принимать от произвольного клиента без контроля веб-сервера.
 
 `CSRF_COOKIE_HTTPONLY` не включается, если frontend читает cookie для заголовка `X-CSRFToken`. Альтернативно токен можно получать из JSON-ответа `/api/v1/auth/csrf/`; окончательный вариант фиксируется тестом API-клиента.
+
+В production используется:
+
+```text
+SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https")
+```
+
+Nginx обязан передавать `X-Forwarded-Proto $scheme`, иначе Django не сможет корректно отличать HTTPS-запросы после reverse proxy.
 
 ## CORS и dev-сервер
 
@@ -255,6 +267,10 @@ DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://localhost:5173
 DJANGO_LOG_LEVEL=DEBUG
 DJANGO_TIME_ZONE=Asia/Yekaterinburg
+DJANGO_SESSION_COOKIE_SECURE=false
+DJANGO_CSRF_COOKIE_SECURE=false
+DJANGO_SECURE_SSL_REDIRECT=false
+DJANGO_SECURE_HSTS_SECONDS=0
 
 POSTGRES_DB=mycloud
 POSTGRES_USER=mycloud

@@ -82,3 +82,72 @@ jobs:
 
       - name: Validate frontend
         run: yarn validate
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Skip deploy when secrets are absent
+        if: env.DEPLOY_HOST == '' || env.DEPLOY_USER == '' || env.DEPLOY_SSH_KEY == ''
+        run: echo "Deploy secrets are not configured. Build checks passed, deployment skipped."
+
+      - name: Prepare SSH
+        if: env.DEPLOY_HOST != '' && env.DEPLOY_USER != '' && env.DEPLOY_SSH_KEY != ''
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload source
+        if: env.DEPLOY_HOST != '' && env.DEPLOY_USER != '' && env.DEPLOY_SSH_KEY != ''
+        run: |
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='.venv' \
+            --exclude='node_modules' \
+            --exclude='frontend/dist' \
+            --exclude='frontend/coverage' \
+            --exclude='var' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='*.pem' \
+            --exclude='*.key' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT:-22}" \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:/opt/mycloud/"
+
+      - name: Build and restart application
+        if: env.DEPLOY_HOST != '' && env.DEPLOY_USER != '' && env.DEPLOY_SSH_KEY != ''
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' <<'REMOTE'
+          set -eu
+          cd /opt/mycloud
+          chown -R mycloud:mycloud /opt/mycloud
+          test -x .venv/bin/python || sudo -u mycloud python3 -m venv .venv
+          sudo -u mycloud .venv/bin/python -m pip install -r backend/requirements/base.txt
+          sudo -u mycloud env HOME=/opt/mycloud corepack prepare yarn@1.22.22 --activate
+          sudo -u mycloud env HOME=/opt/mycloud yarn install --frozen-lockfile
+          sudo -u mycloud env HOME=/opt/mycloud yarn build
+          sudo -u mycloud bash -lc 'cd /opt/mycloud && set -a && . ./.env && set +a && .venv/bin/python backend/manage.py check --settings=config.settings.production'
+          sudo -u mycloud bash -lc 'cd /opt/mycloud && set -a && . ./.env && set +a && .venv/bin/python backend/manage.py migrate --noinput'
+          sudo -u mycloud bash -lc 'cd /opt/mycloud && set -a && . ./.env && set +a && .venv/bin/python backend/manage.py collectstatic --noinput'
+          systemctl restart mycloud
+          nginx -t
+          systemctl reload nginx
+          curl -fsS --resolve cloud.apolos.ru:443:127.0.0.1 https://cloud.apolos.ru/api/v1/health/
+          REMOTE
