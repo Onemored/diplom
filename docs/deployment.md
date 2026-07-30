@@ -31,6 +31,58 @@ apt-get install -y nodejs
 node --version
 ```
 
+## Bootstrap чистого сервера
+
+Команды этого раздела выполняются на новом сервере от `root`. Они описывают
+минимальную подготовку окружения до настройки HTTPS и автодеплоя.
+
+Базовые системные пакеты:
+
+```bash
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates build-essential python3 python3-venv python3-dev postgresql postgresql-contrib nginx certbot python3-certbot-nginx
+```
+
+На минимальном тарифе с 1 ГБ RAM полезно добавить swap, чтобы сборка frontend
+и установка зависимостей проходили стабильнее:
+
+```bash
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+cp /etc/fstab /etc/fstab.bak
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+Код приложения размещается в `/opt/mycloud`. Его можно загрузить клонированием
+публичного репозитория или доставить автодеплоем из GitHub Actions:
+
+```bash
+git clone https://github.com/Onemored/diplom.git /opt/mycloud
+mkdir -p /opt/mycloud/var/storage /opt/mycloud/var/static
+```
+
+Отдельный системный пользователь нужен для запуска приложения без root-прав:
+
+```bash
+useradd --system --home /opt/mycloud --shell /usr/sbin/nologin mycloud
+chown -R mycloud:mycloud /opt/mycloud
+```
+
+PostgreSQL создаётся один раз. Пароль роли должен совпадать с
+`POSTGRES_PASSWORD` в `/opt/mycloud/.env`:
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+CREATE ROLE mycloud WITH LOGIN PASSWORD '<strong-password>';
+CREATE DATABASE mycloud OWNER mycloud;
+\q
+```
+
 ## DNS
 
 Для домена создана A-запись:
@@ -151,6 +203,34 @@ set +a
 ```
 
 Приложение запускается systemd-сервисом `mycloud` через Gunicorn на `127.0.0.1:8000`.
+
+Минимальный unit-файл `/etc/systemd/system/mycloud.service`:
+
+```ini
+[Unit]
+Description=My Cloud Django application
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=mycloud
+Group=mycloud
+WorkingDirectory=/opt/mycloud
+EnvironmentFile=/opt/mycloud/.env
+ExecStart=/opt/mycloud/.venv/bin/gunicorn config.wsgi:application --chdir /opt/mycloud/backend --bind 127.0.0.1:8000 --workers 2 --timeout 60
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Активация сервиса:
+
+```bash
+systemctl daemon-reload
+systemctl enable --now mycloud
+```
 
 Проверка:
 

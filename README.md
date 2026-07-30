@@ -125,12 +125,23 @@ Frontend запускается через Vite и обращается к API D
 yarn build
 ```
 
-Примените миграции и соберите статику:
+Production-команды выполняйте только с production-файлом окружения. Локальный `.env`,
+созданный из `.env.example`, предназначен для разработки и не должен использоваться
+на публичном сервере без замены значений безопасности.
 
 ```bash
-DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python backend/manage.py migrate
-DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python backend/manage.py collectstatic --noinput
-DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python backend/manage.py bootstrap_admin
+set -a
+. ./.env
+set +a
+```
+
+Проверьте конфигурацию, примените миграции и соберите статику:
+
+```bash
+.venv/bin/python backend/manage.py check --settings=config.settings.production
+.venv/bin/python backend/manage.py migrate --noinput
+.venv/bin/python backend/manage.py collectstatic --noinput
+.venv/bin/python backend/manage.py bootstrap_admin
 ```
 
 После этого Django обслуживает:
@@ -146,6 +157,9 @@ DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python backend/manag
 - безопасный `DJANGO_SECRET_KEY`;
 - `DJANGO_ALLOWED_HOSTS`;
 - `DJANGO_CSRF_TRUSTED_ORIGINS`;
+- `DJANGO_SESSION_COOKIE_SECURE=true`;
+- `DJANGO_CSRF_COOKIE_SECURE=true`;
+- `DJANGO_SECURE_SSL_REDIRECT=true`;
 - параметры PostgreSQL;
 - постоянный `FILE_STORAGE_ROOT`;
 - `DJANGO_STATIC_ROOT`;
