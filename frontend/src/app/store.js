@@ -6,6 +6,7 @@ import {
   deleteUser,
   getCurrentUser,
   getFiles,
+  getPublicLink,
   getUsers,
   loginUser,
   logoutUser,
@@ -110,6 +111,20 @@ export const removeStorageFile = createAsyncThunk(
     try {
       await deleteFile(fileId);
       return fileId;
+    } catch (error) {
+      return rejectWithValue(normalizeError(error));
+    }
+  },
+);
+
+export const shareStorageFile = createAsyncThunk(
+  "files/shareStorageFile",
+  async (fileId, { rejectWithValue }) => {
+    try {
+      return {
+        fileId,
+        ...(await getPublicLink(fileId)),
+      };
     } catch (error) {
       return rejectWithValue(normalizeError(error));
     }
@@ -345,6 +360,26 @@ const filesSlice = createSlice({
       })
       .addCase(removeStorageFile.rejected, (state, action) => {
         state.deletingId = null;
+        state.error = action.payload;
+      })
+      .addCase(shareStorageFile.pending, (state, action) => {
+        state.sharingId = action.meta.arg;
+        state.error = null;
+      })
+      .addCase(shareStorageFile.fulfilled, (state, action) => {
+        state.sharingId = null;
+        state.items = state.items.map((file) =>
+          file.id === action.payload.fileId
+            ? {
+                ...file,
+                publicUrl: action.payload.publicUrl,
+              }
+            : file,
+        );
+        state.error = null;
+      })
+      .addCase(shareStorageFile.rejected, (state, action) => {
+        state.sharingId = null;
         state.error = action.payload;
       });
   },

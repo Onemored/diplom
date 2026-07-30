@@ -61,6 +61,14 @@ a {
   background: #eff6ff;
 }
 
+.app-nav a:focus-visible,
+.link-button:focus-visible,
+.button:focus-visible,
+.data-table a:focus-visible {
+  outline: 3px solid #bfdbfe;
+  outline-offset: 3px;
+}
+
 .app-main {
   width: min(1040px, 100%);
   margin: 0 auto;
@@ -218,6 +226,7 @@ a {
 .table-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
@@ -239,6 +248,10 @@ a {
   border-radius: 10px;
   color: #111827;
   font: inherit;
+}
+
+.public-link-input {
+  width: min(360px, 100%);
 }
 
 .danger-button {

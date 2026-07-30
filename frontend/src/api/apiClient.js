@@ -92,6 +92,10 @@ export async function deleteFile(fileId) {
   });
 }
 
+export function getPublicLink(fileId) {
+  return request(`/files/${fileId}/public-link/`);
+}
+
 export async function updateUserRole({ userId, isAdmin }) {
   await getCsrfToken();
   return request(`/users/${userId}/role/`, {

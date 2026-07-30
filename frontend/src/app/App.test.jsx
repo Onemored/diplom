@@ -610,7 +610,8 @@ describe("App", () => {
       error: null,
     });
 
-    await user.click(await screen.findByRole("button", { name: "Изменить" }));
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Изменить" })[0]);
     await user.clear(screen.getByLabelText("Новое имя файла report.pdf"));
     await user.type(screen.getByLabelText("Новое имя файла report.pdf"), "draft.pdf");
     await user.click(screen.getByRole("button", { name: "Отмена" }));
@@ -642,6 +643,15 @@ describe("App", () => {
                   uploadedAt: "2026-07-03T14:30:00+05:00",
                   lastDownloadedAt: null,
                   downloadUrl: "/api/v1/files/42/download/",
+                },
+                {
+                  id: 43,
+                  originalName: "notes.txt",
+                  size: 128,
+                  comment: "Заметки",
+                  uploadedAt: "2026-07-04T10:00:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/43/download/",
                 },
               ],
             }),
@@ -681,7 +691,8 @@ describe("App", () => {
       error: null,
     });
 
-    await user.click(await screen.findByRole("button", { name: "Изменить" }));
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Изменить" })[0]);
     await user.click(screen.getByRole("button", { name: "Сохранить" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Проверьте имя файла.");
@@ -711,6 +722,15 @@ describe("App", () => {
                   uploadedAt: "2026-07-03T14:30:00+05:00",
                   lastDownloadedAt: null,
                   downloadUrl: "/api/v1/files/42/download/",
+                },
+                {
+                  id: 43,
+                  originalName: "notes.txt",
+                  size: 128,
+                  comment: "Заметки",
+                  uploadedAt: "2026-07-04T10:00:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/43/download/",
                 },
               ],
             }),
@@ -743,7 +763,8 @@ describe("App", () => {
       error: null,
     });
 
-    await user.click(await screen.findByRole("button", { name: "Удалить" }));
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Удалить" })[0]);
 
     expect(window.confirm).toHaveBeenCalledWith(
       "Удалить файл report.pdf? Это действие нельзя отменить.",
@@ -794,7 +815,8 @@ describe("App", () => {
       error: null,
     });
 
-    await user.click(await screen.findByRole("button", { name: "Удалить" }));
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Удалить" })[0]);
 
     expect(screen.getByRole("rowheader", { name: "report.pdf" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -825,6 +847,15 @@ describe("App", () => {
                   lastDownloadedAt: null,
                   downloadUrl: "/api/v1/files/42/download/",
                 },
+                {
+                  id: 43,
+                  originalName: "notes.txt",
+                  size: 128,
+                  comment: "Заметки",
+                  uploadedAt: "2026-07-04T10:00:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/43/download/",
+                },
               ],
             }),
         });
@@ -852,9 +883,217 @@ describe("App", () => {
       error: null,
     });
 
-    await user.click(await screen.findByRole("button", { name: "Удалить" }));
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Удалить" })[0]);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось подключиться к серверу.");
+  });
+
+  it("gets and copies public file link", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText,
+      },
+    });
+    const fetchMock = vi.fn((url) => {
+      if (url === "/api/v1/files/") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              owner: {
+                id: 1,
+                username: "user123",
+              },
+              items: [
+                {
+                  id: 42,
+                  originalName: "report.pdf",
+                  size: 245760,
+                  comment: "Финальная версия",
+                  uploadedAt: "2026-07-03T14:30:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/42/download/",
+                },
+                {
+                  id: 43,
+                  originalName: "notes.txt",
+                  size: 128,
+                  comment: "Заметки",
+                  uploadedAt: "2026-07-04T10:00:00+05:00",
+                  lastDownloadedAt: null,
+                  downloadUrl: "/api/v1/files/43/download/",
+                },
+              ],
+            }),
+        });
+      }
+      return Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: () =>
+          Promise.resolve({
+            publicUrl: "https://cloud.example/public/files/token/",
+          }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Публичная ссылка" })[0]);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Ссылка скопирована.");
+    expect(writeText).toHaveBeenCalledWith("https://cloud.example/public/files/token/");
+    expect(screen.getByLabelText("Публичная ссылка файла report.pdf")).toHaveValue(
+      "https://cloud.example/public/files/token/",
+    );
+    expect(screen.getByRole("rowheader", { name: "notes.txt" })).toBeInTheDocument();
+  });
+
+  it("shows public file link when clipboard copy fails", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: vi.fn(() => Promise.reject(new Error("denied"))),
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/v1/files/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () =>
+              Promise.resolve({
+                owner: {
+                  id: 1,
+                  username: "user123",
+                },
+                items: [
+                  {
+                    id: 42,
+                    originalName: "report.pdf",
+                    size: 245760,
+                    comment: "Финальная версия",
+                    uploadedAt: "2026-07-03T14:30:00+05:00",
+                    lastDownloadedAt: null,
+                    downloadUrl: "/api/v1/files/42/download/",
+                  },
+                ],
+              }),
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              publicUrl: "https://cloud.example/public/files/token/",
+            }),
+        });
+      }),
+    );
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Публичная ссылка" })[0]);
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Ссылка готова. Скопируйте её вручную.",
+    );
+  });
+
+  it("shows public link loading error", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (url === "/api/v1/files/") {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            headers: new Headers({ "Content-Type": "application/json" }),
+            json: () =>
+              Promise.resolve({
+                owner: {
+                  id: 1,
+                  username: "user123",
+                },
+                items: [
+                  {
+                    id: 42,
+                    originalName: "report.pdf",
+                    size: 245760,
+                    comment: "Финальная версия",
+                    uploadedAt: "2026-07-03T14:30:00+05:00",
+                    lastDownloadedAt: null,
+                    downloadUrl: "/api/v1/files/42/download/",
+                  },
+                ],
+              }),
+          });
+        }
+        return Promise.resolve({
+          status: 500,
+          ok: false,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              error: {
+                code: "internal_error",
+                message: "Не удалось получить публичную ссылку.",
+              },
+            }),
+        });
+      }),
+    );
+    renderApp("/storage", {
+      user: {
+        id: 1,
+        username: "user123",
+        fullName: "Алексей Петров",
+        email: "user@example.com",
+        isAdmin: false,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    await screen.findByRole("rowheader", { name: "report.pdf" });
+    await user.click(screen.getAllByRole("button", { name: "Публичная ссылка" })[0]);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Не удалось получить публичную ссылку.",
+    );
   });
 
   it("renders disabled file action buttons while request is running", async () => {
@@ -895,12 +1134,13 @@ describe("App", () => {
           uploadStatus: "idle",
           updatingId: 42,
           deletingId: 42,
-          sharingId: null,
+          sharingId: 42,
         },
       },
     );
 
     expect(screen.getByRole("button", { name: "Удаляем..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Готовим..." })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Изменить" }));
     expect(screen.getByText("05.07.2026, 11:15")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Сохраняем..." })).toBeDisabled();

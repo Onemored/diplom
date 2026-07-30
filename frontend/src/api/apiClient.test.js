@@ -6,6 +6,7 @@ import {
   deleteUser,
   getCurrentUser,
   getFiles,
+  getPublicLink,
   getUsers,
   request,
   updateFile,
@@ -223,6 +224,27 @@ describe("apiClient", () => {
       "/api/v1/files/42/",
       expect.objectContaining({
         method: "DELETE",
+      }),
+    );
+  });
+
+  it("loads file public link", async () => {
+    const fetchMock = vi.fn(() =>
+      mockJsonResponse({
+        data: {
+          publicUrl: "https://cloud.example/public/files/token/",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getPublicLink(42)).resolves.toEqual({
+      publicUrl: "https://cloud.example/public/files/token/",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/files/42/public-link/",
+      expect.objectContaining({
+        method: "GET",
       }),
     );
   });

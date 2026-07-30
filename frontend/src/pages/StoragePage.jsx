@@ -6,6 +6,7 @@ import {
   editStorageFile,
   fetchFiles,
   removeStorageFile,
+  shareStorageFile,
   uploadStorageFile,
 } from "../app/store.js";
 
@@ -24,6 +25,7 @@ export function StoragePage() {
     uploadStatus,
     updatingId,
     deletingId,
+    sharingId,
   } = useSelector((state) => state.files);
   const accessDenied = location.state?.accessDenied;
   const [comment, setComment] = useState("");
@@ -113,6 +115,8 @@ export function StoragePage() {
           files={items}
           onDeleteFile={(file) => dispatch(removeStorageFile(file.id))}
           onEditFile={(payload) => dispatch(editStorageFile(payload))}
+          onShareFile={(file) => dispatch(shareStorageFile(file.id))}
+          sharingId={sharingId}
           updatingId={updatingId}
         />
       ) : null}
@@ -120,7 +124,15 @@ export function StoragePage() {
   );
 }
 
-function FilesTable({ deletingId, files, onDeleteFile, onEditFile, updatingId }) {
+function FilesTable({
+  deletingId,
+  files,
+  onDeleteFile,
+  onEditFile,
+  onShareFile,
+  sharingId,
+  updatingId,
+}) {
   return (
     <div className="table-scroll">
       <table className="data-table">
@@ -143,6 +155,8 @@ function FilesTable({ deletingId, files, onDeleteFile, onEditFile, updatingId })
               key={file.id}
               onDeleteFile={onDeleteFile}
               onEditFile={onEditFile}
+              onShareFile={onShareFile}
+              sharingId={sharingId}
               updatingId={updatingId}
             />
           ))}
@@ -152,12 +166,14 @@ function FilesTable({ deletingId, files, onDeleteFile, onEditFile, updatingId })
   );
 }
 
-function FileRow({ deletingId, file, onDeleteFile, onEditFile, updatingId }) {
+function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, sharingId, updatingId }) {
   const [isEditing, setIsEditing] = useState(false);
   const [originalName, setOriginalName] = useState(file.originalName);
   const [comment, setComment] = useState(file.comment);
+  const [copyStatus, setCopyStatus] = useState("");
   const isUpdating = updatingId === file.id;
   const isDeleting = deletingId === file.id;
+  const isSharing = sharingId === file.id;
 
   const handleEdit = async (event) => {
     event.preventDefault();
@@ -175,6 +191,19 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, updatingId }) {
     setOriginalName(file.originalName);
     setComment(file.comment);
     setIsEditing(false);
+  };
+
+  const handleShare = async () => {
+    setCopyStatus("");
+    const result = await onShareFile(file);
+    if (shareStorageFile.fulfilled.match(result)) {
+      try {
+        await navigator.clipboard.writeText(result.payload.publicUrl);
+        setCopyStatus("Ссылка скопирована.");
+      } catch {
+        setCopyStatus("Ссылка готова. Скопируйте её вручную.");
+      }
+    }
   };
 
   if (isEditing) {
@@ -203,10 +232,20 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, updatingId }) {
         <td>{file.lastDownloadedAt ? formatDateTime(file.lastDownloadedAt) : "Не скачивали"}</td>
         <td>
           <form className="table-actions" onSubmit={handleEdit}>
-            <button className="link-button table-button" disabled={isUpdating} type="submit">
+            <button
+              className="link-button table-button"
+              disabled={isUpdating}
+              title="Сохранить новое имя и комментарий файла"
+              type="submit"
+            >
               {isUpdating ? "Сохраняем..." : "Сохранить"}
             </button>
-            <button className="link-button table-button" onClick={handleCancel} type="button">
+            <button
+              className="link-button table-button"
+              onClick={handleCancel}
+              title="Отменить редактирование без сохранения"
+              type="button"
+            >
               Отмена
             </button>
           </form>
@@ -224,18 +263,49 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, updatingId }) {
       <td>{file.lastDownloadedAt ? formatDateTime(file.lastDownloadedAt) : "Не скачивали"}</td>
       <td>
         <div className="table-actions">
-          <a href={file.downloadUrl}>Скачать</a>
-          <button className="link-button table-button" onClick={() => setIsEditing(true)} type="button">
+          <a href={file.downloadUrl} title="Скачать файл с сервера">
+            Скачать
+          </a>
+          <button
+            className="link-button table-button"
+            onClick={() => setIsEditing(true)}
+            title="Изменить имя файла или комментарий"
+            type="button"
+          >
             Изменить
+          </button>
+          <button
+            className="link-button table-button"
+            disabled={isSharing}
+            onClick={handleShare}
+            title="Получить публичную ссылку и скопировать её"
+            type="button"
+          >
+            {isSharing ? "Готовим..." : "Публичная ссылка"}
           </button>
           <button
             className="link-button table-button danger-button"
             disabled={isDeleting}
             onClick={() => confirmDeleteFile(file, onDeleteFile)}
+            title="Удалить файл после подтверждения"
             type="button"
           >
             {isDeleting ? "Удаляем..." : "Удалить"}
           </button>
+          {file.publicUrl ? (
+            <input
+              aria-label={`Публичная ссылка файла ${file.originalName}`}
+              className="table-input public-link-input"
+              readOnly
+              type="text"
+              value={file.publicUrl}
+            />
+          ) : null}
+          {copyStatus ? (
+            <span className="success-message" role="status">
+              {copyStatus}
+            </span>
+          ) : null}
         </div>
       </td>
     </tr>
