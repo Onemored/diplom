@@ -18,10 +18,18 @@ IP: 89.104.71.144
 
 - Python 3.12;
 - PostgreSQL 16;
-- Node.js LTS 22;
+- Node.js 24 LTS;
 - Nginx;
 - Certbot;
 - Gunicorn из `backend/requirements/base.txt`.
+
+Node.js устанавливается из NodeSource 24.x:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+apt-get install -y nodejs
+node --version
+```
 
 ## DNS
 

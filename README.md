@@ -37,7 +37,7 @@ Production-версия: https://cloud.apolos.ru/
 - Vitest, Testing Library, Ruff, Coverage.py;
 - GitHub Actions.
 
-Production-развёртывание проверено на Ubuntu 24.04 LTS, Python 3.12, PostgreSQL 16, Node.js 22 LTS, Nginx, Gunicorn и Certbot.
+Production-развёртывание проверено на Ubuntu 24.04 LTS, Python 3.12, PostgreSQL 16, Node.js 24 LTS, Nginx, Gunicorn и Certbot.
 
 ## Структура проекта
 

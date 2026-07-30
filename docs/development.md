@@ -6,7 +6,7 @@
 
 - Python 3.14;
 - PostgreSQL 18;
-- Node.js актуальной LTS-ветки;
+- Node.js 24 LTS;
 - Yarn Classic 1.22.22;
 - Git.
 
