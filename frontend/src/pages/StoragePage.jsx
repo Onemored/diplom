@@ -233,7 +233,7 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, shar
         <td>
           <form className="table-actions" onSubmit={handleEdit}>
             <button
-              className="link-button table-button"
+              className="action-button action-button-primary"
               disabled={isUpdating}
               title="Сохранить новое имя и комментарий файла"
               type="submit"
@@ -241,7 +241,7 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, shar
               {isUpdating ? "Сохраняем..." : "Сохранить"}
             </button>
             <button
-              className="link-button table-button"
+              className="action-button"
               onClick={handleCancel}
               title="Отменить редактирование без сохранения"
               type="button"
@@ -263,11 +263,15 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, shar
       <td>{file.lastDownloadedAt ? formatDateTime(file.lastDownloadedAt) : "Не скачивали"}</td>
       <td>
         <div className="table-actions">
-          <a href={file.downloadUrl} title="Скачать файл с сервера">
+          <a
+            className="action-button action-button-primary"
+            href={file.downloadUrl}
+            title="Скачать файл с сервера"
+          >
             Скачать
           </a>
           <button
-            className="link-button table-button"
+            className="action-button"
             onClick={() => setIsEditing(true)}
             title="Изменить имя файла или комментарий"
             type="button"
@@ -275,7 +279,7 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, shar
             Изменить
           </button>
           <button
-            className="link-button table-button"
+            className="action-button"
             disabled={isSharing}
             onClick={handleShare}
             title="Получить публичную ссылку и скопировать её"
@@ -284,7 +288,7 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, shar
             {isSharing ? "Готовим..." : "Публичная ссылка"}
           </button>
           <button
-            className="link-button table-button danger-button"
+            className="action-button action-button-danger"
             disabled={isDeleting}
             onClick={() => confirmDeleteFile(file, onDeleteFile)}
             title="Удалить файл после подтверждения"
@@ -293,13 +297,15 @@ function FileRow({ deletingId, file, onDeleteFile, onEditFile, onShareFile, shar
             {isDeleting ? "Удаляем..." : "Удалить"}
           </button>
           {file.publicUrl ? (
-            <input
-              aria-label={`Публичная ссылка файла ${file.originalName}`}
-              className="table-input public-link-input"
-              readOnly
-              type="text"
-              value={file.publicUrl}
-            />
+            <div className="public-link-row">
+              <input
+                aria-label={`Публичная ссылка файла ${file.originalName}`}
+                className="table-input public-link-input"
+                readOnly
+                type="text"
+                value={file.publicUrl}
+              />
+            </div>
           ) : null}
           {copyStatus ? (
             <span className="success-message" role="status">

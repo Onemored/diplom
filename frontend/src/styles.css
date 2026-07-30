@@ -64,6 +64,7 @@ a {
 .app-nav a:focus-visible,
 .link-button:focus-visible,
 .button:focus-visible,
+.action-button:focus-visible,
 .data-table a:focus-visible {
   outline: 3px solid #bfdbfe;
   outline-offset: 3px;
@@ -223,11 +224,69 @@ a {
   font-weight: 700;
 }
 
+.data-table a.action-button {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.data-table a.action-button-primary {
+  color: #ffffff;
+}
+
 .table-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+  min-width: 240px;
+}
+
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.action-button:hover {
+  background: #dbeafe;
+}
+
+.action-button-primary {
+  color: #ffffff;
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.action-button-primary:hover {
+  background: #1d4ed8;
+}
+
+.action-button-danger {
+  color: #b91c1c;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.action-button-danger:hover {
+  background: #ffe4e6;
+}
+
+.action-button:disabled {
+  cursor: progress;
+  opacity: 0.6;
 }
 
 .table-button {
@@ -252,6 +311,11 @@ a {
 
 .public-link-input {
   width: min(360px, 100%);
+}
+
+.public-link-row {
+  flex-basis: 100%;
+  margin-top: 2px;
 }
 
 .danger-button {

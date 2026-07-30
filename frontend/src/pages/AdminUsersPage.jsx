@@ -69,9 +69,14 @@ function UsersTable({ deletingId, onDeleteUser, onToggleRole, roleUpdatingId, us
               <td>{formatBytes(user.storageSize)}</td>
               <td>
                 <div className="table-actions">
-                  <Link to={`/admin/users/${user.id}/files`}>Открыть файлы</Link>
+                  <Link
+                    className="action-button action-button-primary"
+                    to={`/admin/users/${user.id}/files`}
+                  >
+                    Открыть файлы
+                  </Link>
                   <button
-                    className="link-button table-button"
+                    className="action-button"
                     disabled={roleUpdatingId === user.id}
                     onClick={() => confirmRoleChange(user, onToggleRole)}
                     type="button"
@@ -79,7 +84,7 @@ function UsersTable({ deletingId, onDeleteUser, onToggleRole, roleUpdatingId, us
                     {user.isAdmin ? "Сделать пользователем" : "Сделать администратором"}
                   </button>
                   <button
-                    className="link-button table-button danger-button"
+                    className="action-button action-button-danger"
                     disabled={deletingId === user.id}
                     onClick={() => confirmDelete(user, onDeleteUser)}
                     type="button"
