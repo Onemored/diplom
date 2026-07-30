@@ -237,23 +237,23 @@ a {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 8px;
-  min-width: 240px;
+  gap: 6px;
+  min-width: 220px;
 }
 
 .action-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: 32px;
+  padding: 0 10px;
   color: #1d4ed8;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
   border-radius: 999px;
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
   text-decoration: none;

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
@@ -30,13 +30,41 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the home page", () => {
+  it("renders the home page for guests", () => {
     renderApp();
 
     expect(screen.getByRole("heading", { name: "My Cloud" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Зарегистрироваться" })).toHaveAttribute(
       "href",
       "/register",
+    );
+  });
+
+  it("renders current user actions on the home page", () => {
+    renderApp("/", {
+      user: {
+        id: 1,
+        username: "admin",
+        fullName: "Администратор",
+        email: "admin@example.com",
+        isAdmin: true,
+      },
+      status: "authenticated",
+      error: null,
+    });
+
+    expect(screen.getByText(/Вы вошли как/)).toBeInTheDocument();
+    expect(screen.getByText("admin")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Зарегистрироваться" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Мои файлы" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Пользователи" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Мои файлы" })[1]).toHaveAttribute(
+      "href",
+      "/storage",
+    );
+    expect(screen.getAllByRole("link", { name: "Пользователи" })[1]).toHaveAttribute(
+      "href",
+      "/admin/users",
     );
   });
 
@@ -203,9 +231,11 @@ describe("App", () => {
       error: null,
     });
 
-    expect(screen.getByRole("link", { name: "Мои файлы" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Пользователи" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Выход" })).toBeInTheDocument();
+    const navigation = screen.getByRole("navigation", { name: "Основная навигация" });
+
+    expect(within(navigation).getByRole("link", { name: "Мои файлы" })).toBeInTheDocument();
+    expect(within(navigation).queryByRole("link", { name: "Пользователи" })).not.toBeInTheDocument();
+    expect(within(navigation).getByRole("button", { name: "Выход" })).toBeInTheDocument();
   });
 
   it("renders admin navigation", () => {
@@ -221,7 +251,9 @@ describe("App", () => {
       error: null,
     });
 
-    expect(screen.getByRole("link", { name: "Пользователи" })).toHaveAttribute(
+    const navigation = screen.getByRole("navigation", { name: "Основная навигация" });
+
+    expect(within(navigation).getByRole("link", { name: "Пользователи" })).toHaveAttribute(
       "href",
       "/admin/users",
     );
